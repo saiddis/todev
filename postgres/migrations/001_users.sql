@@ -1,0 +1,8 @@
+CREATE TABLE users (
+	id BIGSERIAL PRIMARY KEY,
+	name VARCHAR(18) NOT NULL,
+	email TEXT UNIQUE,
+	api_key TEXT NOT NULL UNIQUE,
+	created_at DATE NOT NULL,
+	updated_at DATE NOT NULL
+);
