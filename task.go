@@ -7,31 +7,31 @@ import (
 
 // Task constants.
 const (
-	MaxTaskStatementLen = 150
+	MaxTaskDescriptionLen = 150
 )
 
 // Task represents a task that is added by the owner of the repo.
 type Task struct {
 	ID int `json:"id"`
 
-	// Statement for the task.
-	Statement string `json:"statement"`
+	// Description for the task.
+	Description string `json:"statement"`
 
 	// To indicate whether the task is done or not.
 	IsCompleted bool `json:"isCompleted"`
 
-	// Message attached to the task for deteails (optional).
-	Message string `json:"message"`
+	// ID of a repo in which the task was given.
+	RepoID int `json:"repoID"`
 
-	// ID of a user to whome the task given (optional).
-	RepoMembershipID int `json:"membershipID"`
+	// ID of a user to whome the task was given (optional).
+	UserID int `json:"conributorID"`
 }
 
-// Validate retruns an error if a task has invalid fields.
+// Validte retruns an error if a task has invalid fields.
 func (t Task) Validate() error {
-	if len(t.Statement) == 0 {
+	if len(t.Description) == 0 {
 		return Errorf(EINVALID, "Task statement required.")
-	} else if utf8.RuneCountInString(t.Statement) > MaxTaskStatementLen {
+	} else if utf8.RuneCountInString(t.Description) > MaxTaskDescriptionLen {
 		return Errorf(EINVALID, "Task statement too long.")
 	}
 	return nil
@@ -44,7 +44,7 @@ func CanEditTask(ctx context.Context, repo *Repo) bool {
 
 // TaskService represents a service for managing a task.
 type TaskService interface {
-	// Retrieves a single task by ID along with associated membership ID (if set).
+	// Retrieves a single task by ID along with associated conributor ID (if set).
 	FindTaskByID(ctx context.Context, id int) (*Task, error)
 
 	// Creates a new task.
@@ -59,6 +59,7 @@ type TaskService interface {
 
 // TaskUpdate represents a set of fields to update on a task.
 type TaskUpdate struct {
-	Statement *string `json:"statement"`
-	Message   *string `json:"message"`
+	Description *string `json:"statement"`
+	IsCompleted *bool   `json:"isCompleted"`
+	UserID      *int    `json:"userID"`
 }

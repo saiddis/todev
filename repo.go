@@ -35,12 +35,12 @@ type Repo struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 
 	// List of associated members and their contributing tasks.
-	Memberships []*RepoMembership `json:"memberships,omitempty"`
+	Contributors []*Contributor `json:"contributors,omitempty"`
 }
 
-// MembershipByUserID returns the membership attached to the repo for the given user ID.
-func (r Repo) MembershipByUserID(ctx context.Context, userID int) *RepoMembership {
-	for _, m := range r.Memberships {
+// ContributorByUserID returns the contributor attached to the repo for the given user ID.
+func (r Repo) ContributorByUserID(ctx context.Context, userID int) *Contributor {
+	for _, m := range r.Contributors {
 		if m.UserID == userID {
 			return m
 		}
@@ -48,10 +48,10 @@ func (r Repo) MembershipByUserID(ctx context.Context, userID int) *RepoMembershi
 	return nil
 }
 
-// TasksByRepoMembershipID returns the tasks attached to membership by the given membership ID.
-func (r Repo) TasksByRepoMembershipID(ctx context.Context, membershipID int) ([]*Task, error) {
-	for _, m := range r.Memberships {
-		if m.ID == membershipID {
+// TasksByContributorID returns the tasks attached to contributor by the given contributor ID.
+func (r Repo) TasksByContributorID(ctx context.Context, contribID int) ([]*Task, error) {
+	for _, m := range r.Contributors {
+		if m.ID == contribID {
 			tasks := make([]*Task, len(m.Tasks))
 			for i := 0; i < len(tasks); i++ {
 				tasks[i] = m.Tasks[i]
@@ -59,7 +59,7 @@ func (r Repo) TasksByRepoMembershipID(ctx context.Context, membershipID int) ([]
 			return tasks, nil
 		}
 	}
-	return nil, Errorf(ENOTFOUND, "No membership for the given id: %d", membershipID)
+	return nil, Errorf(ENOTFOUND, "No contributor for the given id: %d", contribID)
 }
 
 // Validate retruns an error if a repo has invalid fields.
@@ -81,7 +81,7 @@ func CanEditRepo(ctx context.Context, repo *Repo) bool {
 
 // RepoService represents a service for managing repos.
 type RepoService interface {
-	// Retrieves a single repo by ID along with associated memberships.
+	// Retrieves a single repo by ID along with associated contributors.
 	FindRepoByID(ctx context.Context, id int) (*Repo, error)
 
 	// Retrieves a list of repos based on a filter.
@@ -96,8 +96,8 @@ type RepoService interface {
 	// Permanently deletes a repo by ID. Only the repo owner can delete a repo.
 	DeleteRepo(ctx context.Context, id int) error
 
-	// Sets a task for the given user's membership in a repo.
-	SetRepoMembershipTask(ctx context.Context, repoID int, task Task) error
+	// Sets a task for the given user's contributor in a repo.
+	SetContributorTask(ctx context.Context, repoID int, task Task) error
 
 	// TasksLeftReport returns a report of all the tasks due in this repo.
 	TasksLeftReport(ctx context.Context, start, end time.Time, interval time.Duration) (*RepoTasksReport, error)

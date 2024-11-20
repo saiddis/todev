@@ -51,6 +51,17 @@ type EventService interface {
 	Subscribe(ctx context.Context) (Subscription, error)
 }
 
+// NopEventService returns an event service that does nothing.
+func NopEventService() EventService { return &nopEventService{} }
+
+type nopEventService struct{}
+
+func (*nopEventService) PublishEvent(userID int, event Event) {}
+
+func (*nopEventService) Subscribe(ctx context.Context) (Subscription, error) {
+	panic("not implemented")
+}
+
 type Subscription interface {
 	// Event stream for all user's event.
 	C() <-chan Event
