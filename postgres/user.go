@@ -25,22 +25,20 @@ func NewUserService(conn *Conn) *UserService {
 
 // FindUserByID retrieves user by ID along with associated auth objects.
 // Returns ENOTFOUND if user does not exists.
-func (s *UserService) FindUserByID(ctx context.Context, id int) (*todev.User, error) {
+func (s *UserService) FindUserByID(ctx context.Context, id int) (_ *todev.User, err error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("FindUserByID: %w", err)
+		return nil, fmt.Errorf("error beginning transaction: %w", err)
 	}
 	defer func() {
 		if err != nil {
-			log.Println("Rollback!")
-			err := tx.Rollback()
-			if err != nil {
-				log.Printf("FindUserByID: %v", err)
+			err = fmt.Errorf("FindUserByID: %w", err)
+			if err := tx.Rollback(); err != nil {
+				log.Printf("failed to rollback: %v", err)
 			}
 		} else {
-			err := tx.Commit()
-			if err != nil {
-				log.Printf("FindUserByID: %v", err)
+			if err := tx.Commit(); err != nil {
+				log.Printf("failed to commit: %v", err)
 			}
 		}
 	}()
@@ -48,7 +46,7 @@ func (s *UserService) FindUserByID(ctx context.Context, id int) (*todev.User, er
 	user, err := findUserByID(ctx, tx, id)
 	if err != nil {
 		return nil, err
-	} else if err := attachUserAuths(ctx, tx, user); err != nil {
+	} else if err = attachUserAuths(ctx, tx, user); err != nil {
 		return user, err
 	}
 
@@ -57,54 +55,54 @@ func (s *UserService) FindUserByID(ctx context.Context, id int) (*todev.User, er
 
 // FindUsers retrieves a list of users by filter. Also returns total count of
 // matching users which may differ from returned results if filter.Limit is specified.
-func (s *UserService) FindUsers(ctx context.Context, filter todev.UserFilter) ([]*todev.User, int, error) {
+func (s *UserService) FindUsers(ctx context.Context, filter todev.UserFilter) (_ []*todev.User, _ int, err error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, 0, fmt.Errorf("FindUsers: %w", err)
+		return nil, 0, fmt.Errorf("error beginning transaction: %w", err)
 	}
 	defer func() {
 		if err != nil {
-			log.Println("Rollback!")
-			err := tx.Rollback()
-			if err != nil {
-				log.Printf("FindUsers: %v", err)
+			err = fmt.Errorf("FindUsers: %w", err)
+			if err := tx.Rollback(); err != nil {
+				log.Printf("failed to rollback: %v", err)
 			}
 		} else {
-			err := tx.Commit()
-			if err != nil {
-				log.Printf("FindUsers: %v", err)
+			if err := tx.Commit(); err != nil {
+				log.Printf("failed to commit: %v", err)
 			}
 		}
 	}()
 
-	return findUsers(ctx, tx, filter)
+	users, n, err := findUsers(ctx, tx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	return users, n, nil
 }
 
 // CreateUser creates a new user. This is only used for testing since users are
 // typically created during the OAuth creation process in AuthService.CreateUser().
-func (s *UserService) CreateUser(ctx context.Context, user *todev.User) error {
+func (s *UserService) CreateUser(ctx context.Context, user *todev.User) (err error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("CreateUser: %w", err)
+		return fmt.Errorf("error beginning transaction: %w", err)
 	}
 	defer func() {
 		if err != nil {
-			log.Println("Rollback!")
-			err := tx.Rollback()
-			if err != nil {
-				log.Printf("CreateUser: %v", err)
+			err = fmt.Errorf("CreateUser: %w", err)
+			if err := tx.Rollback(); err != nil {
+				log.Printf("failed to rollback: %v", err)
 			}
 		} else {
-			err := tx.Commit()
-			if err != nil {
-				log.Printf("CreateUser: %v", err)
+			if err := tx.Commit(); err != nil {
+				log.Printf("failed to commit: %v", err)
 			}
 		}
 	}()
 
-	if err := createUser(ctx, tx, user); err != nil {
+	if err = createUser(ctx, tx, user); err != nil {
 		return err
-	} else if err := attachUserAuths(ctx, tx, user); err != nil {
+	} else if err = attachUserAuths(ctx, tx, user); err != nil {
 		return err
 	}
 	return nil
@@ -113,22 +111,20 @@ func (s *UserService) CreateUser(ctx context.Context, user *todev.User) error {
 
 // UpdateUser updates a user object. Returns EUNAUTHORIZED if current user is
 // not the user that is being updated. Returns ENOTFOUND if user does not exist.
-func (s *UserService) UpdateUser(ctx context.Context, id int, upd todev.UserUpdate) (*todev.User, error) {
+func (s *UserService) UpdateUser(ctx context.Context, id int, upd todev.UserUpdate) (_ *todev.User, err error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("UpdateUser: %w", err)
+		return nil, fmt.Errorf("error beginning transaction: %w", err)
 	}
 	defer func() {
 		if err != nil {
-			log.Println("Rollback!")
-			err := tx.Rollback()
-			if err != nil {
-				log.Printf("UpdateUser: %v", err)
+			err = fmt.Errorf("UpdateUser: %w", err)
+			if err := tx.Rollback(); err != nil {
+				log.Printf("failed to rollback: %v", err)
 			}
 		} else {
-			err := tx.Commit()
-			if err != nil {
-				log.Printf("UpdateUser: %v", err)
+			if err := tx.Commit(); err != nil {
+				log.Printf("failed to commit: %v", err)
 			}
 		}
 	}()
@@ -136,8 +132,8 @@ func (s *UserService) UpdateUser(ctx context.Context, id int, upd todev.UserUpda
 	user, err := updateUser(ctx, tx, id, upd)
 	if err != nil {
 		return nil, err
-	} else if err := attachUserAuths(ctx, tx, user); err != nil {
-		return user, fmt.Errorf("error attaching user auths: %w", err)
+	} else if err = attachUserAuths(ctx, tx, user); err != nil {
+		return user, err
 	}
 
 	return user, nil
@@ -146,26 +142,24 @@ func (s *UserService) UpdateUser(ctx context.Context, id int, upd todev.UserUpda
 // DeleteUser permanently deletes a user and all owned repos.
 // Returns EUNAUTHORIZED if current user is not the user being deleted.
 // Returns ENOTFOUND if user does not exist.
-func (s *UserService) DeleteUser(ctx context.Context, id int) error {
+func (s *UserService) DeleteUser(ctx context.Context, id int) (err error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("DeleteUser: %w", err)
+		return fmt.Errorf("error beginning transaction: %w", err)
 	}
 	defer func() {
 		if err != nil {
-			log.Println("Rollback!")
-			err := tx.Rollback()
-			if err != nil {
-				log.Printf("DeleteUser: %v", err)
+			err = fmt.Errorf("DeleteUser: %w", err)
+			if err := tx.Rollback(); err != nil {
+				log.Printf("failed to rollback: %v", err)
 			}
 		} else {
-			err := tx.Commit()
-			if err != nil {
-				log.Printf("DeleteUser: %v", err)
+			if err := tx.Commit(); err != nil {
+				log.Printf("failed to commit: %v", err)
 			}
 		}
 	}()
-	if err := deleteUser(ctx, tx, id); err != nil {
+	if err = deleteUser(ctx, tx, id); err != nil {
 		return err
 	}
 
@@ -174,7 +168,7 @@ func (s *UserService) DeleteUser(ctx context.Context, id int) error {
 
 // findUsers returns a list of users matching a filter. Also returns a count of
 // total matching users which may differ if filter.Limit is set.
-func findUsers(ctx context.Context, tx *Tx, filter todev.UserFilter) (_ []*todev.User, n int, err error) {
+func findUsers(ctx context.Context, tx *Tx, filter todev.UserFilter) ([]*todev.User, int, error) {
 	// Build WHERE clause.
 	var argIndex int
 	where, args := []string{"1 = 1"}, []interface{}{}
@@ -200,7 +194,7 @@ func findUsers(ctx context.Context, tx *Tx, filter todev.UserFilter) (_ []*todev
 			api_key,
 			created_at,
 			updated_at,
-			COUNT(*)
+			COUNT(*) OVER()
 		FROM users
 		WHERE `+strings.Join(where, " AND ")+`
 		GROUP BY id
@@ -208,13 +202,13 @@ func findUsers(ctx context.Context, tx *Tx, filter todev.UserFilter) (_ []*todev
 		`+FormatLimitOffset(filter.Limit, filter.Offset),
 	)
 	if err != nil {
-		return nil, n, fmt.Errorf("error preparing query: %w", err)
+		return nil, 0, fmt.Errorf("error preparing query: %w", err)
 	}
 
 	// Execute query to fetch user rows.
 	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
-		return nil, n, fmt.Errorf("error retrieving users: %w", err)
+		return nil, 0, fmt.Errorf("error retrieving users: %w", err)
 	}
 	defer func() {
 		err := rows.Close()
@@ -225,11 +219,12 @@ func findUsers(ctx context.Context, tx *Tx, filter todev.UserFilter) (_ []*todev
 
 	users := make([]*todev.User, 0)
 	var email sql.NullString
-	var user todev.User
+	var n int
 
 	// Deserialize rows into User objects.
 	for rows.Next() {
-		if err := rows.Scan(
+		var user todev.User
+		if err = rows.Scan(
 			&user.ID,
 			&user.Name,
 			&email,
@@ -248,7 +243,7 @@ func findUsers(ctx context.Context, tx *Tx, filter todev.UserFilter) (_ []*todev
 		users = append(users, &user)
 	}
 
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("error iterating over rows: %w", err)
 	}
 
@@ -283,13 +278,13 @@ func findUserByEmail(ctx context.Context, tx *Tx, email string) (*todev.User, er
 
 // createUser creates a new user. Sets the new database ID to user.ID and sets
 // the timestamps to the current time.
-func createUser(ctx context.Context, tx *Tx, user *todev.User) error {
+func createUser(ctx context.Context, tx *Tx, user *todev.User) (err error) {
 	// Set timestamps to the current time.
 	user.CreatedAt = tx.now
 	user.UpdatedAt = user.CreatedAt
 
 	// Perform basic field validation.
-	if err := user.Validate(); err != nil {
+	if err = user.Validate(); err != nil {
 		return fmt.Errorf("error validating user: %w", err)
 	}
 
@@ -309,7 +304,7 @@ func createUser(ctx context.Context, tx *Tx, user *todev.User) error {
 
 	// Execute insertion query.
 	var id int
-	err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		INSERT INTO users (
 			name,
 			email,
@@ -353,7 +348,7 @@ func updateUser(ctx context.Context, tx *Tx, id int, upd todev.UserUpdate) (*tod
 
 	user.UpdatedAt = tx.now
 
-	if err := user.Validate(); err != nil {
+	if err = user.Validate(); err != nil {
 		return user, fmt.Errorf("error validating user: %w", err)
 	}
 
@@ -364,7 +359,7 @@ func updateUser(ctx context.Context, tx *Tx, id int, upd todev.UserUpdate) (*tod
 		email = &user.Email
 	}
 
-	if _, err := tx.ExecContext(ctx, `
+	_, err = tx.ExecContext(ctx, `
 		UPDATE users
 		SET name = $1, email = $2, updated_at = $3
 		WHERE id = $4;`,
@@ -372,7 +367,8 @@ func updateUser(ctx context.Context, tx *Tx, id int, upd todev.UserUpdate) (*tod
 		email,
 		(*NullTime)(&user.UpdatedAt),
 		id,
-	); err != nil {
+	)
+	if err != nil {
 		return user, FormatError(err)
 	}
 
@@ -381,14 +377,15 @@ func updateUser(ctx context.Context, tx *Tx, id int, upd todev.UserUpdate) (*tod
 
 // deleteUser permanently removes user by ID. Returns EUNAUTHORIZED if current
 // user is not the user being deleted.
-func deleteUser(ctx context.Context, tx *Tx, id int) error {
+func deleteUser(ctx context.Context, tx *Tx, id int) (err error) {
 	if user, err := findUserByID(ctx, tx, id); err != nil {
 		return fmt.Errorf("error retrieving user by id: %w", err)
 	} else if user.ID != todev.UserIDFromContext(ctx) {
 		return todev.Errorf(todev.EUNAUTHORIZED, "You are not allowed to delete this user.")
 	}
 
-	if _, err := tx.ExecContext(ctx, "DELETE FROM users WHERE id = $1", id); err != nil {
+	_, err = tx.ExecContext(ctx, "DELETE FROM users WHERE id = $1", id)
+	if err != nil {
 		return fmt.Errorf("error deleting user: %w", err)
 	}
 	return nil

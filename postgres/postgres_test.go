@@ -40,7 +40,7 @@ func TestConn(t *testing.T) {
 	WithSchema(t, nil)
 }
 
-type testFunc func(t testing.TB, db *postgres.Conn)
+type testFunc func(t testing.TB, conn *postgres.Conn)
 
 // WithSchema create a new schema runs given test argument on it.
 func WithSchema[TB testing.TB](tb TB, test testFunc) {

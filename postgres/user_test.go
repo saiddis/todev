@@ -12,43 +12,43 @@ import (
 
 func TestUserService_CreateUser(t *testing.T) {
 	t.Run("OK", func(t *testing.T) {
-		WithSchema(t, createUserOK)
+		WithSchema(t, createUser_OK)
 	})
 
 	t.Run("ErrNameRequired", func(t *testing.T) {
-		WithSchema(t, createUserErrInvalid)
+		WithSchema(t, createUser_ErrInvalid)
 	})
 }
 
 func TestUserService_UpdateUser(t *testing.T) {
 	t.Run("OK", func(t *testing.T) {
-		WithSchema(t, updateUserOK)
+		WithSchema(t, updateUser_OK)
 	})
 
 	t.Run("ErrUnauthorized", func(t *testing.T) {
-		WithSchema(t, updateUserErrUnauthorized)
+		WithSchema(t, updateUser_ErrUnauthorized)
 	})
 }
 
 func TestUserService_DeleteUser(t *testing.T) {
 	t.Run("OK", func(t *testing.T) {
-		WithSchema(t, deleteUserOK)
+		WithSchema(t, deleteUser_OK)
 	})
 
 	t.Run("ErrNotAuthorized", func(t *testing.T) {
-		WithSchema(t, deleteUserErrNotAuthorized)
+		WithSchema(t, deleteUser_ErrNotAuthorized)
 	})
 }
 
 func TestUserService_FindUserByID(t *testing.T) {
 	t.Run("ErrNotFound", func(t *testing.T) {
-		WithSchema(t, findUserByIDErrNotFound)
+		WithSchema(t, findUserByID_ErrNotFound)
 	})
 }
 
 func TestUserService_FindUsers(t *testing.T) {
 	t.Run("OK", func(t *testing.T) {
-		WithSchema(t, findUsersOK)
+		WithSchema(t, findUsers_OK)
 	})
 }
 
@@ -62,7 +62,7 @@ func MustCreateUser(tb testing.TB, ctx context.Context, conn *postgres.Conn, use
 	return user, todev.NewContextWithUser(ctx, user)
 }
 
-func createUserOK(t testing.TB, conn *postgres.Conn) {
+func createUser_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewUserService(conn)
 
 	u := &todev.User{
@@ -99,7 +99,7 @@ func createUserOK(t testing.TB, conn *postgres.Conn) {
 
 }
 
-func createUserErrInvalid(t testing.TB, conn *postgres.Conn) {
+func createUser_ErrInvalid(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewUserService(conn)
 	if err := s.CreateUser(context.Background(), &todev.User{}); err == nil {
 		t.Fatal("error expected")
@@ -108,7 +108,7 @@ func createUserErrInvalid(t testing.TB, conn *postgres.Conn) {
 	}
 }
 
-func updateUserOK(t testing.TB, conn *postgres.Conn) {
+func updateUser_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewUserService(conn)
 	user0, ctx0 := MustCreateUser(t, context.Background(), conn, &todev.User{
 		Name:  "susy",
@@ -137,7 +137,7 @@ func updateUserOK(t testing.TB, conn *postgres.Conn) {
 	}
 }
 
-func updateUserErrUnauthorized(t testing.TB, conn *postgres.Conn) {
+func updateUser_ErrUnauthorized(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewUserService(conn)
 	user0, _ := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "NAME0"})
 	_, ctx1 := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "NAME1"})
@@ -150,7 +150,7 @@ func updateUserErrUnauthorized(t testing.TB, conn *postgres.Conn) {
 	}
 }
 
-func deleteUserOK(t testing.TB, conn *postgres.Conn) {
+func deleteUser_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewUserService(conn)
 	user0, ctx0 := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "john"})
 
@@ -159,7 +159,7 @@ func deleteUserOK(t testing.TB, conn *postgres.Conn) {
 	}
 }
 
-func deleteUserErrNotAuthorized(t testing.TB, conn *postgres.Conn) {
+func deleteUser_ErrNotAuthorized(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewUserService(conn)
 	user0, ctx0 := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "john"})
 
@@ -172,7 +172,7 @@ func deleteUserErrNotAuthorized(t testing.TB, conn *postgres.Conn) {
 	}
 }
 
-func findUserByIDErrNotFound(t testing.TB, conn *postgres.Conn) {
+func findUserByID_ErrNotFound(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewUserService(conn)
 	if _, err := s.FindUserByID(context.Background(), 1); todev.ErrorCode(err) != todev.ENOTFOUND {
 		t.Fatalf("unexpected error: %#v", err)
@@ -180,7 +180,7 @@ func findUserByIDErrNotFound(t testing.TB, conn *postgres.Conn) {
 
 }
 
-func findUsersOK(t testing.TB, conn *postgres.Conn) {
+func findUsers_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewUserService(conn)
 	ctx := context.Background()
 	MustCreateUser(t, ctx, conn, &todev.User{Name: "john", Email: "john@gmail.com"})
