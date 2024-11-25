@@ -43,7 +43,7 @@ func TestConn(t *testing.T) {
 type testFunc func(t testing.TB, conn *postgres.Conn)
 
 // WithSchema create a new schema runs given test argument on it.
-func WithSchema[TB testing.TB](tb TB, test testFunc) {
+func WithSchema(tb testing.TB, test testFunc) {
 	if *pgaddr == "" {
 		if url, ok := GetEnv("DB_URL"); ok != false {
 			*pgaddr = url

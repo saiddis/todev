@@ -20,7 +20,7 @@ func NewAuthService(conn *Conn) *AuthService {
 
 // FindAuthByID retrieves an authentication object by ID along with associated user.
 // Returns ENOTFOUND if the user is not exist.
-func (s *AuthService) FindAuthByID(ctx context.Context, id int) (_ *todev.Auth, err error) {
+func (s *AuthService) FindAuthByID(ctx context.Context, id int) (*todev.Auth, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error beginning transaction: %w", err)
@@ -52,7 +52,7 @@ func (s *AuthService) FindAuthByID(ctx context.Context, id int) (_ *todev.Auth, 
 }
 
 // FindAuths retrieves authentication objects based on filter.
-func (s *AuthService) FindAuths(ctx context.Context, filter todev.AuthFilter) (_ []*todev.Auth, _ int, err error) {
+func (s *AuthService) FindAuths(ctx context.Context, filter todev.AuthFilter) ([]*todev.Auth, int, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error beginning transaction: %w", err)
@@ -87,7 +87,7 @@ func (s *AuthService) FindAuths(ctx context.Context, filter todev.AuthFilter) (_
 
 // CreateAuth creates a new authentication object if a user is attached to auth,
 // then the auth object is linked to an existing user. Otherwise a new user object created.
-func (s *AuthService) CreateAuth(ctx context.Context, auth *todev.Auth) (err error) {
+func (s *AuthService) CreateAuth(ctx context.Context, auth *todev.Auth) error {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("error beginning transaction: %w", err)
@@ -152,7 +152,7 @@ func (s *AuthService) CreateAuth(ctx context.Context, auth *todev.Auth) (err err
 
 // DeleteAuth permanently removes an authentication object from the system by ID.
 // The parent user object is not removed.
-func (s *AuthService) DeleteAuth(ctx context.Context, id int) (err error) {
+func (s *AuthService) DeleteAuth(ctx context.Context, id int) error {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("error beginning transaction: %w", err)
@@ -266,11 +266,11 @@ func findAuths(ctx context.Context, tx *Tx, filter todev.AuthFilter) ([]*todev.A
 	}
 	if v := filter.Source; v != nil {
 		argIndex++
-		where, args = append(where, fmt.Sprintf("source = $%d", argIndex)), append(args, *v)
+		where, args = append(where, fmt.Sprintf("source = $%v", argIndex)), append(args, *v)
 	}
 	if v := filter.SourceID; v != nil {
 		argIndex++
-		where, args = append(where, fmt.Sprintf("source_id = $%d", argIndex)), append(args, *v)
+		where, args = append(where, fmt.Sprintf("source_id = $%v", argIndex)), append(args, *v)
 	}
 
 	stmt, err := tx.PrepareContext(ctx, `
@@ -289,7 +289,8 @@ func findAuths(ctx context.Context, tx *Tx, filter todev.AuthFilter) ([]*todev.A
 		WHERE `+strings.Join(where, " AND ")+`
 		GROUP BY id
 		ORDER BY id ASC
-		`+FormatLimitOffset(filter.Limit, filter.Offset)+`;`)
+		`+FormatLimitOffset(filter.Limit, filter.Offset)+`;`,
+	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error preparing query: %w", err)
 	}

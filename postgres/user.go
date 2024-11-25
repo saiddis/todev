@@ -25,7 +25,7 @@ func NewUserService(conn *Conn) *UserService {
 
 // FindUserByID retrieves user by ID along with associated auth objects.
 // Returns ENOTFOUND if user does not exists.
-func (s *UserService) FindUserByID(ctx context.Context, id int) (_ *todev.User, err error) {
+func (s *UserService) FindUserByID(ctx context.Context, id int) (*todev.User, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error beginning transaction: %w", err)
@@ -55,7 +55,7 @@ func (s *UserService) FindUserByID(ctx context.Context, id int) (_ *todev.User, 
 
 // FindUsers retrieves a list of users by filter. Also returns total count of
 // matching users which may differ from returned results if filter.Limit is specified.
-func (s *UserService) FindUsers(ctx context.Context, filter todev.UserFilter) (_ []*todev.User, _ int, err error) {
+func (s *UserService) FindUsers(ctx context.Context, filter todev.UserFilter) ([]*todev.User, int, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error beginning transaction: %w", err)
@@ -82,7 +82,7 @@ func (s *UserService) FindUsers(ctx context.Context, filter todev.UserFilter) (_
 
 // CreateUser creates a new user. This is only used for testing since users are
 // typically created during the OAuth creation process in AuthService.CreateUser().
-func (s *UserService) CreateUser(ctx context.Context, user *todev.User) (err error) {
+func (s *UserService) CreateUser(ctx context.Context, user *todev.User) error {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("error beginning transaction: %w", err)
@@ -111,7 +111,7 @@ func (s *UserService) CreateUser(ctx context.Context, user *todev.User) (err err
 
 // UpdateUser updates a user object. Returns EUNAUTHORIZED if current user is
 // not the user that is being updated. Returns ENOTFOUND if user does not exist.
-func (s *UserService) UpdateUser(ctx context.Context, id int, upd todev.UserUpdate) (_ *todev.User, err error) {
+func (s *UserService) UpdateUser(ctx context.Context, id int, upd todev.UserUpdate) (*todev.User, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error beginning transaction: %w", err)
@@ -142,7 +142,7 @@ func (s *UserService) UpdateUser(ctx context.Context, id int, upd todev.UserUpda
 // DeleteUser permanently deletes a user and all owned repos.
 // Returns EUNAUTHORIZED if current user is not the user being deleted.
 // Returns ENOTFOUND if user does not exist.
-func (s *UserService) DeleteUser(ctx context.Context, id int) (err error) {
+func (s *UserService) DeleteUser(ctx context.Context, id int) error {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("error beginning transaction: %w", err)
