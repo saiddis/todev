@@ -21,7 +21,7 @@ type Contributor struct {
 	Tasks []*Task `json:"tasks"`
 
 	// Timestamps for contributor creation and last update.
-	CratedAt  time.Time `json:"createdAt"`
+	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
@@ -46,9 +46,9 @@ func CanDeleteContributor(ctx context.Context, contrib *Contributor) bool {
 // Validate returns an error if any of contributor fields are invalid.
 func (m Contributor) Validate() error {
 	if m.RepoID == 0 {
-		return Errorf(EINVALID, "Repo required for contributor.")
+		return Errorf(EINVALID, "Repo required for contributing.")
 	} else if m.UserID == 0 {
-		return Errorf(EINVALID, "User required for contributor.")
+		return Errorf(EINVALID, "User required for contributing.")
 	}
 	return nil
 }
@@ -77,7 +77,7 @@ const (
 // ContributorFilter represents a filter used by FindContributors().
 type ContributorFilter struct {
 	ID     *int `json:"id"`
-	DialID *int `json:"dialID"`
+	RepoID *int `json:"dialID"`
 	UserID *int `json:"userID"`
 
 	// Restricts to a subset of results.
@@ -90,5 +90,5 @@ type ContributorFilter struct {
 
 // ContributorUpdate represents a set of fields to update on a contributor.
 type ContributorUpdate struct {
-	Tasks *int `json:"tasks"`
+	Tasks []*Task `json:"tasks"`
 }

@@ -9,7 +9,7 @@ import (
 
 // Repo constants.
 const (
-	MaxRepoNameLen = 100
+	MaxRepoNameLen = 32
 )
 
 // Repo represents a github project on which the the owner of the repo

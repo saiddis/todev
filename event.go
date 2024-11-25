@@ -4,10 +4,10 @@ import "context"
 
 // Event type constants.
 const (
-	EventTypeRepoTaskCompleted           = "repo:task_completed"
-	EventTypeRepoMembershipTaskCompleted = "repo_membership:task_completed"
-	EventTypeRepoTaskAdded               = "repo:task_added"
-	EventTypeRepoMembershipTaskAdded     = "repo_membership:tasks_added"
+	EventTypeRepoTaskCompleted        = "repo:task_completed"
+	EventTypeContributorTaskCompleted = "repo_membership:task_completed"
+	EventTypeRepoTaskAdded            = "repo:task_added"
+	EventTypeContributorTaskAdded     = "repo_membership:tasks_added"
 )
 
 // Event represents an event that occurs in the system.
@@ -26,7 +26,7 @@ type RepoTaskCompleted struct {
 }
 
 // RepoMembershipTaskCompleted represents a payloads for an event.
-type RepoMembershipTaskCompleted struct {
+type ContributorTaskCompleted struct {
 	ID     int `json:"id"`
 	TaskID int `json:"taskID"`
 }
@@ -38,7 +38,7 @@ type RepoTaskAdded struct {
 }
 
 // RepoMembershipTaskAdded represents a payloads for an event.
-type RepoMembershipTaskAdded struct {
+type ContributorTaskAdded struct {
 	ID   int   `json:"id"`
 	Task *Task `json:"task"`
 }

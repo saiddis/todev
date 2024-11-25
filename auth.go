@@ -25,9 +25,9 @@ type Auth struct {
 	SourceID string `json:"sourceID"`
 
 	// OAuth fields returned by the authentication provider.
-	AccessToken  string     `json:"-"`
-	RefreshToken string     `json:"-"`
-	Expiry       *time.Time `json:"-"`
+	AccessToken  string    `json:"-"`
+	RefreshToken string    `json:"-"`
+	Expiry       time.Time `json:"-"`
 
 	// Timestamps of creation and last update.
 	UpdatedAt time.Time `json:"updatedAt"`
