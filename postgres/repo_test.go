@@ -129,7 +129,7 @@ func updateRepo_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewRepoService(conn)
 
 	_, ctx0 := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "said", Email: "said@gmail.com"})
-	repo := MustCreateRepo(t, ctx0, s, &todev.Repo{Name: "NAME"})
+	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
 
 	newName := "myrepo"
 	uu, err := s.UpdateRepo(ctx0, repo.ID, todev.RepoUpdate{Name: &newName})
@@ -152,9 +152,9 @@ func findRepos_owned(t testing.TB, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
 
-	MustCreateRepo(t, ctx0, s, &todev.Repo{Name: "repo1"})
-	MustCreateRepo(t, ctx0, s, &todev.Repo{Name: "repo2"})
-	MustCreateRepo(t, ctx1, s, &todev.Repo{Name: "repo3"})
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
+	MustCreateRepo(t, ctx1, conn, &todev.Repo{Name: "repo3"})
 
 	if repos, n, err := s.FindRepos(ctx0, todev.RepoFilter{}); err != nil {
 		t.Fatal(err)
@@ -171,15 +171,14 @@ func findRepos_owned(t testing.TB, conn *postgres.Conn) {
 
 func findRepos_MemberOf(t testing.TB, conn *postgres.Conn) {
 	rs := postgres.NewRepoService(conn)
-	cs := postgres.NewContrubutorService(conn)
 
 	ctx := context.Background()
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 	user1, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
 
-	repo1 := MustCreateRepo(t, ctx0, rs, &todev.Repo{Name: "repo1"})
-	MustCreateRepo(t, ctx0, rs, &todev.Repo{Name: "repo2"})
-	MustCreateContributor(t, ctx1, cs, &todev.Contributor{RepoID: repo1.ID, UserID: user1.ID})
+	repo1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
+	MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo1.ID, UserID: user1.ID})
 
 	if repos, n, err := rs.FindRepos(ctx1, todev.RepoFilter{}); err != nil {
 		t.Fatal(err)
@@ -197,8 +196,8 @@ func findRepos_InviteCode(t testing.TB, conn *postgres.Conn) {
 	ctx := context.Background()
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 
-	repo1 := MustCreateRepo(t, ctx0, s, &todev.Repo{Name: "repo1"})
-	MustCreateRepo(t, ctx0, s, &todev.Repo{Name: "repo2"})
+	repo1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
 
 	if repos, n, err := s.FindRepos(ctx0, todev.RepoFilter{InviteCode: &repo1.InviteCode}); err != nil {
 		t.Fatal(err)
@@ -214,7 +213,7 @@ func findRepos_InviteCode(t testing.TB, conn *postgres.Conn) {
 func deleteRepo_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewRepoService(conn)
 	_, ctx0 := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
-	repo := MustCreateRepo(t, ctx0, s, &todev.Repo{Name: "NAME"})
+	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
 
 	if err := s.DeleteRepo(ctx0, repo.ID); err != nil {
 		t.Fatal(err)
@@ -232,9 +231,9 @@ func MustFindRepoByID(tb testing.TB, ctx context.Context, s *postgres.RepoServic
 	return repo
 }
 
-func MustCreateRepo(tb testing.TB, ctx context.Context, s *postgres.RepoService, repo *todev.Repo) *todev.Repo {
+func MustCreateRepo(tb testing.TB, ctx context.Context, conn *postgres.Conn, repo *todev.Repo) *todev.Repo {
 	tb.Helper()
-	if err := s.CreateRepo(ctx, repo); err != nil {
+	if err := postgres.NewRepoService(conn).CreateRepo(ctx, repo); err != nil {
 		tb.Fatalf("MustCreateRepo: %v", err)
 	}
 	return repo

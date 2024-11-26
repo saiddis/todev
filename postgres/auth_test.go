@@ -147,7 +147,7 @@ func createAuth_ErrUserRequired(t testing.TB, conn *postgres.Conn) {
 
 func deleteAuth_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewAuthService(conn)
-	auth0, ctx0 := MustCreateAuth(t, context.Background(), s, &todev.Auth{
+	auth0, ctx0 := MustCreateAuth(t, context.Background(), conn, &todev.Auth{
 		Source:      todev.AuthSourceGitHub,
 		SourceID:    "X",
 		AccessToken: "X",
@@ -169,13 +169,13 @@ func deleteAuth_ErrNotFound(t testing.TB, conn *postgres.Conn) {
 
 func deleteAuth_ErrUnauthorized(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewAuthService(conn)
-	auth0, _ := MustCreateAuth(t, context.Background(), s, &todev.Auth{
+	auth0, _ := MustCreateAuth(t, context.Background(), conn, &todev.Auth{
 		Source:      todev.AuthSourceGitHub,
 		SourceID:    "X",
 		AccessToken: "X",
 		User:        &todev.User{Name: "NAME"},
 	})
-	_, ctx1 := MustCreateAuth(t, context.Background(), s, &todev.Auth{
+	_, ctx1 := MustCreateAuth(t, context.Background(), conn, &todev.Auth{
 		Source:      todev.AuthSourceGitHub,
 		SourceID:    "Y",
 		AccessToken: "Y",
@@ -199,19 +199,19 @@ func findAuths_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewAuthService(conn)
 	ctx := context.Background()
 
-	MustCreateAuth(t, context.Background(), s, &todev.Auth{
+	MustCreateAuth(t, context.Background(), conn, &todev.Auth{
 		Source:      "SRCA",
 		SourceID:    "X1",
 		AccessToken: "ACCESSX1",
 		User:        &todev.User{Name: "X", Email: "x@y.com"},
 	})
-	MustCreateAuth(t, context.Background(), s, &todev.Auth{
+	MustCreateAuth(t, context.Background(), conn, &todev.Auth{
 		Source:      "SRCB",
 		SourceID:    "X2",
 		AccessToken: "ACCESSX2",
 		User:        &todev.User{Name: "X", Email: "x@y.com"},
 	})
-	MustCreateAuth(t, context.Background(), s, &todev.Auth{
+	MustCreateAuth(t, context.Background(), conn, &todev.Auth{
 		Source:      todev.AuthSourceGitHub,
 		SourceID:    "Y",
 		AccessToken: "ACCESSY",
@@ -234,9 +234,9 @@ func findAuths_OK(t testing.TB, conn *postgres.Conn) {
 
 }
 
-func MustCreateAuth(tb testing.TB, ctx context.Context, service *postgres.AuthService, auth *todev.Auth) (*todev.Auth, context.Context) {
+func MustCreateAuth(tb testing.TB, ctx context.Context, conn *postgres.Conn, auth *todev.Auth) (*todev.Auth, context.Context) {
 	tb.Helper()
-	if err := service.CreateAuth(ctx, auth); err != nil {
+	if err := postgres.NewAuthService(conn).CreateAuth(ctx, auth); err != nil {
 		tb.Fatalf("error creating auth: %v", err)
 	}
 	return auth, todev.NewContextWithUser(ctx, auth.User)

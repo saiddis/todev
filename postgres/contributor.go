@@ -366,7 +366,7 @@ func deleteContirbutor(ctx context.Context, tx *Tx, id int) error {
 
 	// Do not let repo owner delete their own contributor object.
 	if contributor.UserID == contributor.Repo.UserID {
-		return todev.Errorf(todev.ECONFLICT, "Repo owner may not delete itself from contributors.")
+		return todev.Errorf(todev.ECONFLICT, "Repo owner cannot be deleted.")
 	}
 
 	if _, err = tx.ExecContext(ctx, "DELETE FROM contributors WHERE id = $1", id); err != nil {
