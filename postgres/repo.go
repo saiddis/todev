@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/saiddis/todev"
@@ -44,9 +45,22 @@ func (s *RepoService) CreateRepo(ctx context.Context, repo *todev.Repo) error {
 
 	if err = createRepo(ctx, tx, repo); err != nil {
 		return err
-	} else if err = attachRepoAssociations(ctx, tx, repo); err != nil {
+	} else if repo.User, err = findUserByID(ctx, tx, repo.UserID); err != nil {
+		return fmt.Errorf("error attaching repo user: %w", err)
+	}
+	ctx = context.WithValue(ctx, "repoID", repo.ID)
+
+	// Subscribing for task event service.
+	sub, err := s.conn.EventService.Subscribe(ctx)
+	if err != nil {
 		return err
 	}
+	repo.Subscription = sub
+
+	// Listening for incoming events.
+	go func() {
+		listenForEvents(repo)
+	}()
 
 	return nil
 }
@@ -168,7 +182,11 @@ func (s *RepoService) DeleteRepo(ctx context.Context, id int) error {
 		}
 	}()
 
-	return deleteRepo(ctx, tx, id)
+	if err = deleteRepo(ctx, tx, id); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func createRepo(ctx context.Context, tx *Tx, repo *todev.Repo) (err error) {
@@ -342,16 +360,23 @@ func updateRepo(ctx context.Context, tx *Tx, id int, upd todev.RepoUpdate) (*tod
 }
 
 func deleteRepo(ctx context.Context, tx *Tx, id int) (err error) {
-	if repo, err := findRepoByID(ctx, tx, id); err != nil {
+	repo, err := findRepoByID(ctx, tx, id)
+	if err != nil {
 		return fmt.Errorf("error retrieving user by id: %w", err)
 	} else if repo.UserID != todev.UserIDFromContext(ctx) {
 		return todev.Errorf(todev.EUNAUTHORIZED, "Only the owner can delete a repo.")
+	} else if sub, ok := tx.conn.EventService.GetSubscribtion(repo.ID); ok {
+		repo.Subscription = sub
+	} else {
+		return todev.Errorf(todev.ENOTFOUND, "Repo is not subscribed for task event service.")
 	}
 
-	_, err = tx.ExecContext(ctx, "DELETE FROM repos WHERE id = $1;", id)
-	if err != nil {
+	if _, err = tx.ExecContext(ctx, "DELETE FROM repos WHERE id = $1;", id); err != nil {
 		return fmt.Errorf("error deleting repo: %w", err)
 	}
+
+	repo.Subscription.Done() <- struct{}{}
+
 	return nil
 }
 
@@ -393,10 +418,66 @@ func checkRepoExists(ctx context.Context, tx *Tx, id int) error {
 	return nil
 }
 
-// attachRepoAssociations is a helper function to look up and attach the owner of the repo.
+// listenForEvents is a helper funtion that listens for incoming events
+// for the given repo.
+func listenForEvents(repo *todev.Repo) {
+	for {
+		select {
+		case event := <-repo.Subscription.C():
+			switch payload := event.Payload.(type) {
+			case todev.RepoTaskAdded:
+				repo.Tasks = append(repo.Tasks, payload.Task)
+			case todev.RepoTaskCompletionToggled:
+				for _, task := range repo.Tasks {
+					if task.ID == payload.ID {
+						if task.IsCompleted {
+							task.IsCompleted = false
+						} else {
+							task.IsCompleted = true
+						}
+						break
+					}
+				}
+			case todev.RepoTaskDescriptionChanged:
+				for _, task := range repo.Tasks {
+					if task.ID == payload.ID {
+						task.Description = payload.Value
+						break
+					}
+				}
+			case todev.RepoTaskContributorIDChanged:
+				for _, task := range repo.Tasks {
+					if task.ID == payload.ID {
+						task.ContributorID = &payload.Value
+						break
+					}
+				}
+			case todev.RepoTaskDeleted:
+				for i, task := range repo.Tasks {
+					if task.ID == payload.ID {
+						repo.Tasks = slices.Concat(repo.Tasks[:i], repo.Tasks[i+1:])
+						break
+					}
+				}
+			}
+		case <-repo.Subscription.Done():
+			repo.Subscription.Close()
+			return
+		}
+	}
+}
+
+// attachRepoAssociations is a helper function to look up and attach the owner of the repo
+// along with associated subscribtion.
 func attachRepoAssociations(ctx context.Context, tx *Tx, repo *todev.Repo) (err error) {
 	if repo.User, err = findUserByID(ctx, tx, repo.UserID); err != nil {
-		return fmt.Errorf("attach repo user: %w", err)
+		return fmt.Errorf("error attaching repo user: %w", err)
 	}
-	return nil
+
+	if sub, ok := tx.conn.EventService.GetSubscribtion(repo.ID); ok {
+		repo.Subscription = sub
+		return nil
+	}
+
+	return todev.Errorf(todev.ENOTFOUND, "subscribtion does not exist")
 }
