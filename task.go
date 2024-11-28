@@ -22,12 +22,13 @@ type Task struct {
 	IsCompleted bool `json:"isCompleted"`
 
 	// ID of a repo in which the task was given.
-	RepoID int   `json:"repoID"`
-	Repo   *Repo `json:"repo"`
+	RepoID int `json:"repoID"`
+
+	// User ID of repo ownder.
+	OwnerID int `json:"ownerID"`
 
 	// ID of a contributor to whome the task was given (optional).
-	ContributorID int          `json:"conributorID"`
-	Contributor   *Contributor `json:"contributor"`
+	ContributorID *int `json:"conributorID"`
 
 	// Timestamps for task creation and last update.
 	CreatedAt time.Time `json:"createdAt"`
@@ -42,10 +43,12 @@ const (
 
 // Validte retruns an error if a task has invalid fields.
 func (t Task) Validate() error {
-	if len(t.Description) == 0 {
-		return Errorf(EINVALID, "Task statement required.")
+	if t.RepoID == 0 {
+		return Errorf(EINVALID, "Repo ID required.")
+	} else if len(t.Description) == 0 {
+		return Errorf(EINVALID, "Task description required.")
 	} else if utf8.RuneCountInString(t.Description) > MaxTaskDescriptionLen {
-		return Errorf(EINVALID, "Task statement too long.")
+		return Errorf(EINVALID, "Task description too long.")
 	}
 	return nil
 }
@@ -91,5 +94,5 @@ type TaskFilter struct {
 type TaskUpdate struct {
 	Description   *string `json:"statement"`
 	ContributorID *int    `json:"contributorID"`
-	IsCompleted   *bool   `json:"isCompleted"`
+	Toggled       bool    `json:"toggled"`
 }

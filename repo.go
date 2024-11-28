@@ -15,7 +15,8 @@ const (
 // Repo represents a github project on which the the owner of the repo
 // adds tasks for the team (contributors).
 type Repo struct {
-	ID int `json:"id"`
+	Subscription Subscription `json:"subscribtion"`
+	ID           int          `json:"id"`
 
 	// Owner of the repo.
 	UserID int   `json:"userID"`
@@ -28,7 +29,7 @@ type Repo struct {
 	InviteCode string `json:"inviteCode,omitempty"`
 
 	// List of the tasks attached to the repo.
-	Tasks []Task `json:"tasks"`
+	Tasks []*Task `json:"tasks"`
 
 	// Timestamps for repo creation and last update.
 	CreatedAt time.Time `json:"createdAt"`

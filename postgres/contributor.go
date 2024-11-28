@@ -336,15 +336,15 @@ func updateContributor(ctx context.Context, tx *Tx, id int, upd todev.Contributo
 		return contributor, fmt.Errorf("error updating contributor: %w", err)
 	}
 
-	if err = publishRepoEvent(ctx, tx, contributor.RepoID, todev.Event{
-		Type: todev.EventTypeContributorTaskAdded,
-		Payload: &todev.ContributorTaskAdded{
-			ID:   id,
-			Task: contributor.Tasks[len(contributor.Tasks)-1],
-		},
-	}); err != nil {
-		return nil, fmt.Errorf("publish repo event: %w", err)
-	}
+	// if err = publishRepoEvent(ctx, tx, contributor.RepoID, todev.Event{
+	// 	Type: todev.EventTypeContributorTaskAdded,
+	// 	Payload: &todev.ContributorTaskAdded{
+	// 		ID:   id,
+	// 		Task: contributor.Tasks[len(contributor.Tasks)-1],
+	// 	},
+	// }); err != nil {
+	// 	return nil, fmt.Errorf("error publishing contributor event: %w", err)
+	// }
 
 	return contributor, nil
 }

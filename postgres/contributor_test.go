@@ -66,20 +66,20 @@ func TestContributorService_DeleteContributor(t *testing.T) {
 	})
 }
 
-type testData struct {
-	input    *todev.Contributor
-	expected error
-	ctx      context.Context
-}
-
 func deleteContributor_OK(t *testing.T, conn *postgres.Conn) {
+	type testData struct {
+		input    *todev.Contributor
+		expected error
+		ctx      context.Context
+	}
 	ctx := context.Background()
 	s := postgres.NewContrubutorService(conn)
 
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
 	_, ctx2 := MustCreateUser(t, ctx, conn, &todev.User{Name: "george"})
-	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
+	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
+	defer cleanup()
 
 	tests := map[string]testData{
 		"ByOwner": testData{
@@ -116,13 +116,20 @@ func deleteContributor_OK(t *testing.T, conn *postgres.Conn) {
 }
 
 func deleteContributor_Errors(t *testing.T, conn *postgres.Conn) {
+	type testData struct {
+		input    *todev.Contributor
+		expected error
+		ctx      context.Context
+	}
 	ctx := context.Background()
 	s := postgres.NewContrubutorService(conn)
 
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
 	_, ctx2 := MustCreateUser(t, ctx, conn, &todev.User{Name: "george"})
-	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
+	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
+	defer cleanup()
+
 	MustCreateContributor(t, ctx2, conn, &todev.Contributor{RepoID: repo.ID})
 
 	tests := map[string]testData{
@@ -163,12 +170,16 @@ func findContributors_RestrictToRepoMember(t testing.TB, conn *postgres.Conn) {
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
 	_, ctx2 := MustCreateUser(t, ctx, conn, &todev.User{Name: "george"})
 
-	repo0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
+	repo0, cleanup0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
+	defer cleanup0()
+
 	contributor0 := MustFindContributorByID(t, ctx0, conn, 1)
 	contributor1 := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo0.ID})
 	contributor2 := MustCreateContributor(t, ctx2, conn, &todev.Contributor{RepoID: repo0.ID})
 
-	repo1 := MustCreateRepo(t, ctx1, conn, &todev.Repo{Name: "repo1"})
+	repo1, cleanup1 := MustCreateRepo(t, ctx1, conn, &todev.Repo{Name: "repo1"})
+	defer cleanup1()
+
 	MustCreateContributor(t, ctx0, conn, &todev.Contributor{RepoID: repo1.ID})
 
 	contributors, n, err := s.FindContributors(ctx2, todev.ContributorFilter{})
@@ -200,8 +211,11 @@ func findContributors_FilterByRepoID(t testing.TB, conn *postgres.Conn) {
 	ctx := context.Background()
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
 
-	repo0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
-	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+	repo0, cleanup0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
+	defer cleanup0()
+
+	_, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+	defer cleanup()
 
 	// These repos will automatically create owner-contributor(1, 2)
 	contributors, n, err := s.FindContributors(ctx0, todev.ContributorFilter{RepoID: &repo0.ID})
@@ -221,7 +235,8 @@ func findContributors_FilterByUserID(t testing.TB, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
 	user1, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
 
-	repo0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
+	repo0, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
+	defer cleanup()
 	contributor0 := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo0.ID})
 
 	// These repos will automatically create owner-contributor(1, 2)
@@ -241,7 +256,8 @@ func createContributor_OK(t testing.TB, conn *postgres.Conn) {
 	ctx := context.Background()
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
-	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
+	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
+	defer cleanup()
 
 	cs := postgres.NewContrubutorService(conn)
 
@@ -290,7 +306,8 @@ func createContributors_Errors(t *testing.T, conn *postgres.Conn) {
 	}
 
 	cs := postgres.NewContrubutorService(conn)
-	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
+	_, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
+	defer cleanup()
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			if err := cs.CreateContributor(tt.ctx, tt.input); err.Error() != tt.expected.Error() {

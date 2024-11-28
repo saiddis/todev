@@ -129,8 +129,8 @@ func updateRepo_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewRepoService(conn)
 
 	_, ctx0 := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "said", Email: "said@gmail.com"})
-	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
-
+	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
+	defer cleanup()
 	newName := "myrepo"
 	uu, err := s.UpdateRepo(ctx0, repo.ID, todev.RepoUpdate{Name: &newName})
 	if err != nil {
@@ -152,9 +152,12 @@ func findRepos_owned(t testing.TB, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
 
-	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
-	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
-	MustCreateRepo(t, ctx1, conn, &todev.Repo{Name: "repo3"})
+	_, cleanup0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+	defer cleanup0()
+	_, cleanup1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
+	defer cleanup1()
+	_, cleanup2 := MustCreateRepo(t, ctx1, conn, &todev.Repo{Name: "repo3"})
+	defer cleanup2()
 
 	if repos, n, err := s.FindRepos(ctx0, todev.RepoFilter{}); err != nil {
 		t.Fatal(err)
@@ -176,8 +179,12 @@ func findRepos_MemberOf(t testing.TB, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 	user1, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
 
-	repo1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
-	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
+	repo1, cleanup1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+	defer cleanup1()
+
+	_, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
+	defer cleanup()
+
 	MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo1.ID, UserID: user1.ID})
 
 	if repos, n, err := rs.FindRepos(ctx1, todev.RepoFilter{}); err != nil {
@@ -196,8 +203,11 @@ func findRepos_InviteCode(t testing.TB, conn *postgres.Conn) {
 	ctx := context.Background()
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 
-	repo1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
-	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
+	repo1, cleanup1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+	defer cleanup1()
+
+	_, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
+	defer cleanup()
 
 	if repos, n, err := s.FindRepos(ctx0, todev.RepoFilter{InviteCode: &repo1.InviteCode}); err != nil {
 		t.Fatal(err)
@@ -213,7 +223,7 @@ func findRepos_InviteCode(t testing.TB, conn *postgres.Conn) {
 func deleteRepo_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewRepoService(conn)
 	_, ctx0 := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
-	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
+	repo, _ := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
 
 	if err := s.DeleteRepo(ctx0, repo.ID); err != nil {
 		t.Fatal(err)
@@ -222,19 +232,22 @@ func deleteRepo_OK(t testing.TB, conn *postgres.Conn) {
 	}
 }
 
-func MustFindRepoByID(tb testing.TB, ctx context.Context, s *postgres.RepoService, id int) *todev.Repo {
+func MustFindRepoByID(tb testing.TB, ctx context.Context, conn *postgres.Conn, id int) *todev.Repo {
 	tb.Helper()
-	repo, err := s.FindRepoByID(ctx, id)
+	repo, err := postgres.NewRepoService(conn).FindRepoByID(ctx, id)
 	if err != nil {
 		tb.Fatalf("MustFindRepoByID: %v", err)
 	}
 	return repo
 }
 
-func MustCreateRepo(tb testing.TB, ctx context.Context, conn *postgres.Conn, repo *todev.Repo) *todev.Repo {
+func MustCreateRepo(tb testing.TB, ctx context.Context, conn *postgres.Conn, repo *todev.Repo) (*todev.Repo, func()) {
 	tb.Helper()
-	if err := postgres.NewRepoService(conn).CreateRepo(ctx, repo); err != nil {
+	s := postgres.NewRepoService(conn)
+	if err := s.CreateRepo(ctx, repo); err != nil {
 		tb.Fatalf("MustCreateRepo: %v", err)
 	}
-	return repo
+	return repo, func() {
+		repo.Subscription.Done() <- struct{}{}
+	}
 }
