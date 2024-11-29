@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"strings"
@@ -18,6 +17,8 @@ func NewTaskService(conn *Conn) *TaskService {
 	return &TaskService{conn: conn}
 }
 
+// CreateTask creates a new task in a repo.
+// Returns ECONFLICT if contributor creating a task is not the owner.
 func (s *TaskService) CreateTask(ctx context.Context, task *todev.Task) error {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -25,7 +26,7 @@ func (s *TaskService) CreateTask(ctx context.Context, task *todev.Task) error {
 	}
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("CreateContributor: %w", err)
+			err = fmt.Errorf("CreateTask: %w", err)
 			if err := tx.Rollback(); err != nil {
 				log.Printf("failed to rollback: %v", err)
 			}
@@ -38,9 +39,133 @@ func (s *TaskService) CreateTask(ctx context.Context, task *todev.Task) error {
 
 	if err = createTask(ctx, tx, task); err != nil {
 		return err
-	} else if err = attachTaksAssociations(ctx, tx, task); err != nil {
+	} else if attachTaskAssociations(ctx, tx, task); err != nil {
+		return err
+	} else if task.OwnerID != todev.UserIDFromContext(ctx) {
+		return todev.Errorf(todev.ECONFLICT, "Only repo owner can create tasks.")
+	} else if err = s.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+		Type: todev.EventTypeTaskAdded,
+		Payload: todev.TaskAdded{
+			Task: task,
+		},
+	}); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// FindTasks retrieves a list of matching tasks based on filter.
+// Only returns tasks that belong to the current contributor, or all the tasks
+// if the the current contributor is the owner.
+func (s *TaskService) FindTasks(ctx context.Context, filter todev.TaskFilter) ([]*todev.Task, int, error) {
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("error beginning transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("FindTasks: %w", err)
+			if err := tx.Rollback(); err != nil {
+				log.Printf("failed to rollback: %v", err)
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				log.Printf("failed to commit: %v", err)
+			}
+		}
+	}()
+
+	tasks, n, err := findTasks(ctx, tx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	for _, task := range tasks {
+		if err = attachTaskAssociations(ctx, tx, task); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	return tasks, n, nil
+}
+
+// FindContributorsByID retrieves a contributor by ID along with associated repo and contributor. Returns ENOTFOUND
+// if task does not exist or contributor does not have permission to view it.
+func (s *TaskService) FindTaskByID(ctx context.Context, id int) (*todev.Task, error) {
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error beginning transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("FindTasks: %w", err)
+			if err := tx.Rollback(); err != nil {
+				log.Printf("failed to rollback: %v", err)
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				log.Printf("failed to commit: %v", err)
+			}
+		}
+	}()
+
+	task, err := findTasksByID(ctx, tx, id)
+	if err != nil {
+		return nil, err
+	} else if err = attachTaskAssociations(ctx, tx, task); err != nil {
+		return nil, err
+	}
+	return task, nil
+}
+
+func (s *TaskService) UpdateTask(ctx context.Context, id int, upd todev.TaskUpdate) (*todev.Task, error) {
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error beginning transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("FindTasks: %w", err)
+			if err := tx.Rollback(); err != nil {
+				log.Printf("failed to rollback: %v", err)
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				log.Printf("failed to commit: %v", err)
+			}
+		}
+	}()
+
+	task, err := updateTask(ctx, tx, id, upd)
+	if err != nil {
+		return nil, err
+	}
+	return task, nil
+}
+
+func (s *TaskService) DeleteTask(ctx context.Context, id int) error {
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("error beginning transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("FindTasks: %w", err)
+			if err := tx.Rollback(); err != nil {
+				log.Printf("failed to rollback: %v", err)
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				log.Printf("failed to commit: %v", err)
+			}
+		}
+	}()
+
+	if err = deleteTask(ctx, tx, id); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -50,34 +175,37 @@ func createTask(ctx context.Context, tx *Tx, task *todev.Task) (err error) {
 
 	if err = task.Validate(); err != nil {
 		return err
-	}
-
-	if err = checkRepoExists(ctx, tx, task.RepoID); err != nil {
+	} else if err = checkRepoExists(ctx, tx, task.RepoID); err != nil {
 		return err
-	} else if _, err = findContributorByID(ctx, tx, task.ContributorID); err != nil {
-		return nil
 	}
 
-	err = tx.QueryRowContext(ctx, `
-		INSERT INTO tasks (
-			description,
-			repo_id,
-			contributor_id,
-			created_at,
-			updated_at
-		)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id;
-		`,
-		&task.Description,
-		&task.RepoID,
-		&task.ContributorID,
+	args := []interface{}{
+		task.Description,
+		task.RepoID,
 		(*NullTime)(&task.CreatedAt),
 		(*NullTime)(&task.UpdatedAt),
-	).Scan(task.ID)
+	}
+	insertQuery := []string{"description", "repo_id", "created_at", "updated_at"}
+	valuesQuery := []string{"$1", "$2", "$3", "$4"}
+
+	if task.ContributorID != nil {
+		args = append(args, task.ContributorID)
+		insertQuery = append(insertQuery, "contributor_id")
+		valuesQuery = append(valuesQuery, "$5")
+	}
+	var id int
+	err = tx.QueryRowContext(ctx, `
+		INSERT INTO tasks (`+strings.Join(insertQuery, ",")+`)
+		VALUES (`+strings.Join(valuesQuery, ",")+`)
+		RETURNING id;
+		`,
+		args...,
+	).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("error scanning: %w", err)
 	}
+
+	task.ID = id
 
 	return nil
 }
@@ -128,18 +256,18 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 		sortBy = "t.created_at DESC"
 	default:
 		argIndex++
-		sortBy = fmt.Sprintf(`CASE c.uesr_id WHEN $%d THEN 0 ELSE 1 END ASC, t.is_completed DESC`, argIndex)
+		sortBy = fmt.Sprintf(`CASE c.user_id WHEN $%d THEN 0 ELSE 1 END ASC, t.is_completed DESC`, argIndex)
 		args = append(args, userID)
 	}
 	args = append(args, userID, userID)
 
 	stmt, err := tx.PrepareContext(ctx, `
 		SELECT
-			t.id
-			t.repo_id
+			t.id,
+			t.repo_id,
 			t.contributor_id,
-			t.description,
 			t.is_completed,
+			t.description,
 			t.created_at,
 			t.updated_at,
 			COUNT(*) OVER()
@@ -148,7 +276,7 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 		JOIN contributors c ON t.contributor_id = c.id
 		JOIN users u ON c.user_id = u.id
 		WHERE `+strings.Join(where, " AND ")+`
-		GROUP BY t.id, r.user_id, t.is_completed
+		GROUP BY t.id, r.user_id, c.user_id
 		ORDER BY `+sortBy+`
 		`+FormatLimitOffset(filter.Limit, filter.Offset)+`;`,
 	)
@@ -169,27 +297,21 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 
 	tasks := make([]*todev.Task, 0)
 
-	// Contributor ID is nullable since this field is optional.
-	var contributorID sql.NullInt32
 	var n int
-
 	for rows.Next() {
 		var task todev.Task
 		if err = rows.Scan(
 			&task.ID,
 			&task.RepoID,
-			&contributorID,
+			&task.ContributorID,
 			&task.IsCompleted,
+			&task.Description,
 			&task.CreatedAt,
 			&task.UpdatedAt,
 			&n,
 		); err != nil {
 			return nil, 0, fmt.Errorf("error scanning: %w", err)
 		}
-		if contributorID.Valid {
-			task.ContributorID = int(contributorID.Int32)
-		}
-
 		tasks = append(tasks, &task)
 	}
 
@@ -200,84 +322,127 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 	return tasks, n, nil
 }
 
-func updateTask(ctx context.Context, tx *Tx, id int, upd todev.TaskUpdate) (*todev.Task, error) {
+func updateTask(ctx context.Context, tx *Tx, id int, upd todev.TaskUpdate) (_ *todev.Task, err error) {
 	task, err := findTasksByID(ctx, tx, id)
 	if err != nil {
-		return nil, fmt.Errorf("retrieving task by ID: %w", err)
-	} else if todev.UserIDFromContext(ctx) != task.Repo.UserID {
-		return nil, todev.Errorf(todev.ECONFLICT, "You are not allowed to create tasks.")
+		return nil, err
+	} else if err = attachTaskAssociations(ctx, tx, task); err != nil {
+		return nil, err
+	} else if !todev.CanEditTask(ctx, *task) {
+		return nil, todev.Errorf(todev.ECONFLICT, "You are not allowed to update tasks.")
 	}
 
 	if v := upd.ContributorID; v != nil {
-		task.ContributorID = *v
-	}
-	if v := upd.IsCompleted; v != nil {
-		task.IsCompleted = *v
+		defer func() {
+			if err == nil {
+				err = tx.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+					Type: todev.EventTypeTaskAdded,
+					Payload: todev.TaskContributorIDChanged{
+						ID:    task.ID,
+						Value: *v,
+					},
+				})
+			}
+		}()
+		task.ContributorID = v
 	}
 	if v := upd.Description; v != nil {
+		defer func() {
+			err = tx.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+				Type: todev.EventTypeTaskDescriptionChanged,
+				Payload: todev.TaskDescriptionChanged{
+					ID:    task.ID,
+					Value: *v,
+				},
+			})
+		}()
 		task.Description = *v
 	}
-
-	task.UpdatedAt = tx.now
+	if upd.ToggleCompletion {
+		defer func() {
+			err = tx.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+				Type: todev.EventTypeTaskCompletionToggled,
+				Payload: todev.TaskCompletionToggled{
+					ID: task.ID,
+				},
+			})
+		}()
+		if task.IsCompleted {
+			task.IsCompleted = false
+		} else {
+			task.IsCompleted = true
+		}
+	}
 
 	if err = task.Validate(); err != nil {
 		return nil, err
 	}
 
+	task.UpdatedAt = tx.now
+
+	args := []interface{}{
+		task.Description,
+		task.RepoID,
+		task.IsCompleted,
+		(*NullTime)(&task.UpdatedAt),
+	}
+	idArgIndex := "5;"
+	updateQuery := []string{"description = $1", "repo_id = $2", "is_completed = $3", "updated_at = $4"}
+	if task.ContributorID != nil {
+		args = append(args, *task.ContributorID)
+		updateQuery = append(updateQuery, "contributor_id = $5")
+		idArgIndex = "6;"
+	}
+	args = append(args, id)
+
 	_, err = tx.ExecContext(ctx, `
 		UPDATE tasks
-		SET
-			contributor_id = $1, 
-			is_completed = $2, 
-			description = $3 
-			updated_at = $4 
-		WHERE id = $5;`,
-		task.ContributorID,
-		task.IsCompleted,
-		task.Description,
-		task.UpdatedAt,
-		id,
+		SET `+strings.Join(updateQuery, ",")+` WHERE id = $`+idArgIndex,
+		args...,
 	)
 	if err != nil {
 		return task, fmt.Errorf("error updating task: %w", err)
 	}
 
-	if err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
-		Type: todev.EventTypeRepoTaskAdded,
-		Payload: &todev.RepoTaskAdded{
-			ID:   id,
-			Task: task,
-		},
-	}); err != nil {
-		return nil, fmt.Errorf("error publishing task event: %w", err)
-	}
-
-	return task, nil
+	return task, err
 }
 
 func deleteTask(ctx context.Context, tx *Tx, id int) error {
-	userID := todev.UserIDFromContext(ctx)
-
 	task, err := findTasksByID(ctx, tx, id)
 	if err != nil {
-		return fmt.Errorf("error retrieving task by ID: %w", err)
-	} else if err = attachTaksAssociations(ctx, tx, task); err != nil {
 		return err
+	} else if err = attachTaskAssociations(ctx, tx, task); err != nil {
+		return err
+	} else if !todev.CanEditTask(ctx, *task) {
+		return todev.Errorf(todev.ECONFLICT, "You are not allowed to delete tasks.")
 	}
 
-	// Verify user is the repo owner.
-	if task.Repo.UserID != userID {
-		return todev.Errorf(todev.EUNAUTHORIZED, "You do not have permission to delete the task.")
+	if _, err = tx.ExecContext(ctx, "DELETE FROM tasks WHERE id = $1;", id); err != nil {
+		return fmt.Errorf("error deleting task: %w", err)
+	} else if err = tx.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+		Type: todev.EventTypeTaskDeleted,
+		Payload: todev.TaskDeleted{
+			ID: task.ID,
+		},
+	}); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func attachTaksAssociations(ctx context.Context, tx *Tx, task *todev.Task) (err error) {
-	if task.Repo, err = findRepoByID(ctx, tx, task.RepoID); err != nil {
-		return fmt.Errorf("error attaching task repo: %w", err)
-	} else if task.Contributor, err = findContributorByID(ctx, tx, task.ContributorID); err != nil {
-		return fmt.Errorf("error attaching task contributor: %w", err)
+func publishTaskEvent(tx *Tx, id int, event todev.Event) error {
+	if err := tx.conn.EventService.PublishEvent(id, event); err != nil {
+		return err
 	}
+	return nil
+}
+
+func attachTaskAssociations(ctx context.Context, tx *Tx, task *todev.Task) (err error) {
+	repo, err := findRepoByID(ctx, tx, task.RepoID)
+	if err != nil {
+		return fmt.Errorf("error attaching task repo: %w", err)
+	}
+	task.OwnerID = repo.UserID
 	return nil
 }
