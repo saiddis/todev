@@ -13,17 +13,6 @@ const (
 
 // Auth represents a set of OAuth creadentials.
 type Auth struct {
-	ID int `json:"id"`
-
-	// User can have one or more metheds of authentication.
-	// However, only one per source is allowed per user.
-	UserID int   `json:"UserID"`
-	User   *User `json:"user"`
-
-	// The authentication source and the source provider's user ID.
-	Source   string `json:"source"`
-	SourceID string `json:"sourceID"`
-
 	// OAuth fields returned by the authentication provider.
 	AccessToken  string    `json:"-"`
 	RefreshToken string    `json:"-"`
@@ -32,6 +21,17 @@ type Auth struct {
 	// Timestamps of creation and last update.
 	UpdatedAt time.Time `json:"updatedAt"`
 	CreatedAt time.Time `json:"createdAt"`
+
+	// User can have one or more metheds of authentication.
+	// However, only one per source is allowed per user.
+	User *User `json:"user"`
+
+	// The authentication source and the source provider's user ID.
+	Source string `json:"source"`
+
+	SourceID string `json:"sourceID"`
+	UserID   int    `json:"UserID"`
+	ID       int    `json:"id"`
 }
 
 // Validate returns an error if any of the fields are invalid on the Auth object.

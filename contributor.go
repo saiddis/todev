@@ -7,22 +7,19 @@ import (
 
 // Contributor represensts a contributor to s repo.
 type Contributor struct {
-	ID int `json:"id"`
-
-	// Parent repo. This repo updates when a contributor updates
-	RepoID int   `json:"repoID"`
-	Repo   *Repo `json:"repo"`
-
-	// Only this user can update the membership.
-	UserID int   `json:"userID"`
-	User   *User `json:"user"`
-
-	// Tasks given to a contributor.
-	Tasks []*Task `json:"tasks"`
-
 	// Timestamps for contributor creation and last update.
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+
+	// OwnerID is a user ID of contributor's associated repo object.
+	OwnerID int `json:"ownerID"`
+
+	// Associated IDs
+	RepoID int `json:"repoID"`
+	UserID int `json:"userID"`
+	ID     int `json:"id"`
+
+	IsAdmin bool `json:"isAdmin"`
 }
 
 // CanEditContributor returns true if the current user can edit contributor.
@@ -30,17 +27,16 @@ func CanEditContributor(ctx context.Context, contrib Contributor) bool {
 	return contrib.UserID == UserIDFromContext(ctx)
 }
 
-func CanDeleteContributor(ctx context.Context, contrib *Contributor) bool {
-
+func CanDeleteContributor(ctx context.Context, contributor Contributor) error {
 	userID := UserIDFromContext(ctx)
-	if contrib.Repo != nil {
-		if contrib.Repo.UserID == contrib.UserID {
-			return false // repo owner cannot delete contributor
-		} else if contrib.Repo.UserID == userID {
-			return true // repo owner can delete other contributors
-		}
+	// Verify user is the contributor or ownes parent repo.
+	if contributor.UserID != userID && contributor.OwnerID != userID {
+		return Errorf(EUNAUTHORIZED, "You do not have permission to delete the contributor.")
+	} else if contributor.UserID == contributor.OwnerID { // Do not let repo owner delete their own contributor object.
+		return Errorf(ECONFLICT, "Repo owner cannot be deleted.")
 	}
-	return contrib.UserID == userID // non-repo owner can delete own membership
+
+	return nil
 }
 
 // Validate returns an error if any of contributor fields are invalid.
@@ -90,5 +86,5 @@ type ContributorFilter struct {
 
 // ContributorUpdate represents a set of fields to update on a contributor.
 type ContributorUpdate struct {
-	Tasks []*Task `json:"tasks"`
+	IsAdmin *bool
 }

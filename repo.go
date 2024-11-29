@@ -15,12 +15,18 @@ const (
 // Repo represents a github project on which the the owner of the repo
 // adds tasks for the team (contributors).
 type Repo struct {
-	Subscription Subscription `json:"subscribtion"`
-	ID           int          `json:"id"`
+	// List of associated members and their contributing tasks.
+	Contributors []*Contributor `json:"contributors,omitempty"`
 
-	// Owner of the repo.
-	UserID int   `json:"userID"`
-	User   *User `json:"user"`
+	// List of the tasks attached to the repo.
+	Tasks []*Task `json:"tasks"`
+
+	// Subscription object for recieving events from an event service.
+	Subscription Subscription `json:"subscribtion"`
+
+	// Timestamps for repo creation and last update.
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 
 	// Human-readable name of repo.
 	Name string `json:"name"`
@@ -28,15 +34,10 @@ type Repo struct {
 	// Code used to share the repo with other users.
 	InviteCode string `json:"inviteCode,omitempty"`
 
-	// List of the tasks attached to the repo.
-	Tasks []*Task `json:"tasks"`
+	// user ID of the repo owner.
+	UserID int `json:"userID"`
 
-	// Timestamps for repo creation and last update.
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-
-	// List of associated members and their contributing tasks.
-	Contributors []*Contributor `json:"contributors,omitempty"`
+	ID int `json:"id"`
 }
 
 // ContributorByUserID returns the contributor attached to the repo for the given user ID.
@@ -51,11 +52,11 @@ func (r Repo) ContributorByUserID(ctx context.Context, userID int) *Contributor 
 
 // TasksByContributorID returns the tasks attached to contributor by the given contributor ID.
 func (r Repo) TasksByContributorID(ctx context.Context, contribID int) ([]*Task, error) {
-	for _, m := range r.Contributors {
-		if m.ID == contribID {
-			tasks := make([]*Task, len(m.Tasks))
+	for _, c := range r.Contributors {
+		if c.ID == contribID {
+			tasks := make([]*Task, len(r.Tasks))
 			for i := 0; i < len(tasks); i++ {
-				tasks[i] = m.Tasks[i]
+				tasks[i] = r.Tasks[i]
 			}
 			return tasks, nil
 		}
@@ -76,7 +77,7 @@ func (r Repo) Validate() error {
 }
 
 // CanEditRepo returns true if the current user can edit the repo.
-func CanEditRepo(ctx context.Context, repo *Repo) bool {
+func CanEditRepo(ctx context.Context, repo Repo) bool {
 	return repo.UserID == UserIDFromContext(ctx)
 }
 

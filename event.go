@@ -4,13 +4,15 @@ import "context"
 
 // Event type constants.
 const (
-	EventTypeRepoTaskAdded                = "repo:task_added"
-	EventTypeContributorTaskAdded         = "contributor:tasks_added"
-	EventTypeRepoTaskCompletionToggled    = "repo:task_completion_toggled"
-	EventTypeRepoTaskDescriptionChanged   = "repo:task_description_changed"
-	EventTypeRepoTaskContributorIDChanged = "repo:task_contributor_id_changed"
-	EventTypeRepoTaskDeleted              = "repo:task_deleted"
-	EventTypeContributorTaskDeleted       = "contirbutor:task_deleted"
+	EventTypeTaskAdded                = "task:added"
+	EventTypeTaskCompletionToggled    = "task:completion_toggled"
+	EventTypeTaskDescriptionChanged   = "task:description_changed"
+	EventTypeTaskContributorIDChanged = "task:contributor_id_changed"
+	EventTypeTaskDeleted              = "task:deleted"
+	EventTypeContributorAdded         = "contributor:added"
+	EventTypeContributorSetAdmin      = "contributor:set_admin"
+	EventTypeContributorResetAdmin    = "contributor:reset_admin"
+	EventTypeContributorDeleted       = "contributor:deleted"
 )
 
 // Event represents an event that occurs in the system.
@@ -24,40 +26,57 @@ type Event struct {
 
 // RepoTaskAdded represents a payload for an event and
 // is due to create a new task object.
-type RepoTaskAdded struct {
-	Task *Task `json:"task"`
+type ContributorAdded struct {
+	Contributor *Contributor `json:"contributor"`
 }
 
-// ContributorTaskAdded represents a payload for an event and
+// RepoTaskCompletionToggled represents a payload for an event and
+// is due to update IsCompleted field of a task object to the
+// opposite of the current one.
+type ContributorSetAdmin struct {
+	ID int `json:"id"`
+}
+
+type ContributorResetAdmin struct {
+	ID int `json:"id"`
+}
+
+// RepoTaskDeleted represents a payload for an event and
+// is due to delete a task object from a repo by ID.
+type ContributorDeleted struct {
+	ID int `json:"id"`
+}
+
+// RepoTaskAdded represents a payload for an event and
 // is due to create a new task object.
-type ContributorTaskAdded struct {
+type TaskAdded struct {
 	Task *Task `json:"task"`
 }
 
 // RepoTaskCompletionToggled represents a payload for an event and
 // is due to update IsCompleted field of a task object to the
 // opposite of the current one.
-type RepoTaskCompletionToggled struct {
+type TaskCompletionToggled struct {
 	ID int `json:"id"`
 }
 
 // RepoTaskDescriptionChanged represents a payload for an event and
 // is due to update Description field of a task object.
-type RepoTaskDescriptionChanged struct {
+type TaskDescriptionChanged struct {
 	ID    int    `json:"id"`
 	Value string `json:"value"`
 }
 
 // RepoTaskDescriptionChanged represents a payload for an event and
 // is due to update ContributorID field of a task object.
-type RepoTaskContributorIDChanged struct {
+type TaskContributorIDChanged struct {
 	ID    int `json:"id"`
 	Value int `json:"value"`
 }
 
 // RepoTaskDeleted represents a payload for an event and
 // is due to delete a task object from a repo by ID.
-type RepoTaskDeleted struct {
+type TaskDeleted struct {
 	ID int `json:"id"`
 }
 

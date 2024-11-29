@@ -13,13 +13,12 @@ const (
 
 // Task represents a task that is added by the owner of the repo.
 type Task struct {
-	ID int `json:"id"`
+	// Timestamps for task creation and last update.
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 
 	// Description for the task.
 	Description string `json:"statement"`
-
-	// To indicate whether the task is done or not.
-	IsCompleted bool `json:"isCompleted"`
 
 	// ID of a repo in which the task was given.
 	RepoID int `json:"repoID"`
@@ -30,9 +29,10 @@ type Task struct {
 	// ID of a contributor to whome the task was given (optional).
 	ContributorID *int `json:"conributorID"`
 
-	// Timestamps for task creation and last update.
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID int `json:"id"`
+
+	// To indicate whether the task is done or not.
+	IsCompleted bool `json:"isCompleted"`
 }
 
 const (
@@ -54,8 +54,8 @@ func (t Task) Validate() error {
 }
 
 // CanEditTask returns true if the current user can edit the repo.
-func CanEditTask(ctx context.Context, repo *Repo) bool {
-	return repo.UserID == UserIDFromContext(ctx)
+func CanEditTask(ctx context.Context, task Task) bool {
+	return task.OwnerID == UserIDFromContext(ctx)
 }
 
 // TaskService represents a service for managing a task.
@@ -92,7 +92,7 @@ type TaskFilter struct {
 
 // TaskUpdate represents a set of fields to update on a task.
 type TaskUpdate struct {
-	Description   *string `json:"statement"`
-	ContributorID *int    `json:"contributorID"`
-	Toggled       bool    `json:"toggled"`
+	Description      *string `json:"statement"`
+	ContributorID    *int    `json:"contributorID"`
+	ToggleCompletion bool    `json:"toggleCompletion"`
 }

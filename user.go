@@ -7,7 +7,12 @@ import (
 
 // User represents a user on the system.
 type User struct {
-	ID int `json:"id"`
+	// Timestamps for user creation and last update.
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// List of associated OAuth authentication objects.
+	Auths []*Auth `json:"auths"`
 
 	// Users prefered name and email.
 	Name  string `json:"name"`
@@ -16,12 +21,7 @@ type User struct {
 	// Randomly generated API key for use with the CLI.
 	APIKey string `json:"-"`
 
-	// Timestamps for user creation and last update.
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-
-	// List of associated OAuth authentication objects.
-	Auths []*Auth `json:"auths"`
+	ID int `json:"id"`
 }
 
 // Validate returns an error if the user has invalid fields.
