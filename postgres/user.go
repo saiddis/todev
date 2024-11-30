@@ -369,7 +369,7 @@ func updateUser(ctx context.Context, tx *Tx, id int, upd todev.UserUpdate) (*tod
 		id,
 	)
 	if err != nil {
-		return user, FormatError(err)
+		return user, fmt.Errorf("error updating users: %w", err)
 	}
 
 	return user, nil

@@ -45,22 +45,18 @@ func (s *RepoService) CreateRepo(ctx context.Context, repo *todev.Repo) error {
 
 	if err = createRepo(ctx, tx, repo); err != nil {
 		return err
-	} else if repo.User, err = findUserByID(ctx, tx, repo.UserID); err != nil {
-		return fmt.Errorf("error attaching repo user: %w", err)
-	}
-	ctx = context.WithValue(ctx, "repoID", repo.ID)
-
-	// Subscribing for task event service.
-	sub, err := s.conn.EventService.Subscribe(ctx)
-	if err != nil {
+	} else if err = attachRepoAssociations(ctx, tx, repo); err != nil {
 		return err
 	}
-	repo.Subscription = sub
 
 	// Listening for incoming events.
 	go func() {
 		listenForEvents(repo)
 	}()
+
+	if err = createSelfContributor(ctx, tx, repo); err != nil {
+		return fmt.Errorf("error creating self contributor: %w", err)
+	}
 
 	return nil
 }
@@ -231,14 +227,6 @@ func createRepo(ctx context.Context, tx *Tx, repo *todev.Repo) (err error) {
 	if err != nil {
 		return fmt.Errorf("error creating repo: %w", err)
 	}
-
-	if err = createContributor(ctx, tx, &todev.Contributor{
-		RepoID: repo.ID,
-		UserID: repo.UserID,
-	}); err != nil {
-		return fmt.Errorf("error creating self memberhsip: %w", err)
-	}
-
 	return nil
 }
 
@@ -331,7 +319,7 @@ func updateRepo(ctx context.Context, tx *Tx, id int, upd todev.RepoUpdate) (*tod
 	repo, err := findRepoByID(ctx, tx, id)
 	if err != nil {
 		return repo, fmt.Errorf("error finding repo to update: %w", err)
-	} else if !todev.CanEditRepo(ctx, repo) {
+	} else if !todev.CanEditRepo(ctx, *repo) {
 		return nil, todev.Errorf(todev.EUNAUTHORIZED, "You are not allowed to update this repo.")
 	}
 
@@ -363,7 +351,7 @@ func deleteRepo(ctx context.Context, tx *Tx, id int) (err error) {
 	repo, err := findRepoByID(ctx, tx, id)
 	if err != nil {
 		return fmt.Errorf("error retrieving user by id: %w", err)
-	} else if repo.UserID != todev.UserIDFromContext(ctx) {
+	} else if !todev.CanEditRepo(ctx, *repo) {
 		return todev.Errorf(todev.EUNAUTHORIZED, "Only the owner can delete a repo.")
 	} else if sub, ok := tx.conn.EventService.GetSubscribtion(repo.ID); ok {
 		repo.Subscription = sub
@@ -375,35 +363,8 @@ func deleteRepo(ctx context.Context, tx *Tx, id int) (err error) {
 		return fmt.Errorf("error deleting repo: %w", err)
 	}
 
-	repo.Subscription.Done() <- struct{}{}
+	repo.Subscription.Done()
 
-	return nil
-}
-
-// publishRepoEvent publishes events to the repo contributors.
-func publishRepoEvent(ctx context.Context, tx *Tx, id int, event todev.Event) error {
-	rows, err := tx.QueryContext(ctx, "SELECT user_id FROM contributors WHERE repo_id = $1;", id)
-	if err != nil {
-		return fmt.Errorf("error retrieving repo contributors: %w", err)
-	}
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			log.Printf("error closing rows: %v", err)
-		}
-	}()
-
-	for rows.Next() {
-		var userID int
-		if err = rows.Scan(&userID); err != nil {
-			return fmt.Errorf("error scanning: %w", err)
-		}
-		tx.conn.EventService.PublishEvent(userID, event)
-	}
-
-	if err = rows.Err(); err != nil {
-		return fmt.Errorf("error itarating over rows: %w", err)
-	}
 	return nil
 }
 
@@ -425,9 +386,9 @@ func listenForEvents(repo *todev.Repo) {
 		select {
 		case event := <-repo.Subscription.C():
 			switch payload := event.Payload.(type) {
-			case todev.RepoTaskAdded:
+			case todev.TaskAdded:
 				repo.Tasks = append(repo.Tasks, payload.Task)
-			case todev.RepoTaskCompletionToggled:
+			case todev.TaskCompletionToggled:
 				for _, task := range repo.Tasks {
 					if task.ID == payload.ID {
 						if task.IsCompleted {
@@ -438,28 +399,52 @@ func listenForEvents(repo *todev.Repo) {
 						break
 					}
 				}
-			case todev.RepoTaskDescriptionChanged:
+			case todev.TaskDescriptionChanged:
 				for _, task := range repo.Tasks {
 					if task.ID == payload.ID {
 						task.Description = payload.Value
 						break
 					}
 				}
-			case todev.RepoTaskContributorIDChanged:
+			case todev.TaskContributorIDChanged:
 				for _, task := range repo.Tasks {
 					if task.ID == payload.ID {
 						task.ContributorID = &payload.Value
 						break
 					}
 				}
-			case todev.RepoTaskDeleted:
+			case todev.TaskDeleted:
 				for i, task := range repo.Tasks {
 					if task.ID == payload.ID {
 						repo.Tasks = slices.Concat(repo.Tasks[:i], repo.Tasks[i+1:])
 						break
 					}
 				}
+			case todev.ContributorAdded:
+				repo.Contributors = append(repo.Contributors, payload.Contributor)
+			case todev.ContributorSetAdmin:
+				for _, contributor := range repo.Contributors {
+					if contributor.ID == payload.ID {
+						contributor.IsAdmin = true
+						break
+					}
+				}
+			case todev.ContributorResetAdmin:
+				for _, contributor := range repo.Contributors {
+					if contributor.ID == payload.ID {
+						contributor.IsAdmin = false
+						break
+					}
+				}
+			case todev.ContributorDeleted:
+				for i, contributor := range repo.Contributors {
+					if contributor.ID == payload.ID {
+						repo.Contributors = slices.Concat(repo.Contributors[:i], repo.Contributors[i+1:])
+						break
+					}
+				}
 			}
+
 		case <-repo.Subscription.Done():
 			repo.Subscription.Close()
 			return
@@ -470,8 +455,16 @@ func listenForEvents(repo *todev.Repo) {
 // attachRepoAssociations is a helper function to look up and attach the owner of the repo
 // along with associated subscribtion.
 func attachRepoAssociations(ctx context.Context, tx *Tx, repo *todev.Repo) (err error) {
-	if repo.User, err = findUserByID(ctx, tx, repo.UserID); err != nil {
+	user, err := findUserByID(ctx, tx, repo.UserID)
+	if err != nil {
 		return fmt.Errorf("error attaching repo user: %w", err)
+	}
+	repo.UserID = user.ID
+
+	if repo.Contributors, _, err = findContributors(ctx, tx, todev.ContributorFilter{RepoID: &repo.ID}); err != nil {
+		return fmt.Errorf("error attaching repo contributors: %w", err)
+	} else if repo.Tasks, _, err = findTasks(ctx, tx, todev.TaskFilter{RepoID: &repo.ID}); err != nil {
+		return fmt.Errorf("error attaching repo tasks: %w", err)
 	}
 
 	if sub, ok := tx.conn.EventService.GetSubscribtion(repo.ID); ok {
@@ -479,5 +472,11 @@ func attachRepoAssociations(ctx context.Context, tx *Tx, repo *todev.Repo) (err 
 		return nil
 	}
 
-	return todev.Errorf(todev.ENOTFOUND, "subscribtion does not exist")
+	ctx = context.WithValue(ctx, "repoID", repo.ID)
+	sub, err := tx.conn.EventService.Subscribe(ctx)
+	if err != nil {
+		return fmt.Errorf("error subscribing for event service: %w", err)
+	}
+	repo.Subscription = sub
+	return nil
 }

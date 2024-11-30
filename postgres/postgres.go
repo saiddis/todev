@@ -276,22 +276,6 @@ func FormatLimitOffset(limit, offset int) string {
 	return ""
 }
 
-// FormatError returns err as a todev error, if possible.
-// Otherwise returns the original error.
-func FormatError(err error) error {
-	if err != nil {
-		return nil
-	}
-
-	switch err.Error() {
-	case "UNIQUE constraint failed: contributors.repo_id, contributors.user_id":
-		return todev.Errorf(todev.ECONFLICT, "Contributor already exists.")
-	default:
-		return err
-	}
-
-}
-
 // logstr is helper fuction for printing and returning a string.
 // It can be useful for printing out query text.
 func logstr(s string) string {

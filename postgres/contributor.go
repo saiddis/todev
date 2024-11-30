@@ -47,6 +47,13 @@ func (s *ContributorService) CreateContributor(ctx context.Context, contributor 
 		return err
 	} else if err = attachContributorAssociations(ctx, tx, contributor); err != nil {
 		return err
+	} else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
+		Type: todev.EventTypeContributorAdded,
+		Payload: todev.ContributorAdded{
+			Contributor: contributor,
+		},
+	}); err != nil {
+		return fmt.Errorf("error publishing event: %w", err)
 	}
 	return nil
 }
@@ -137,8 +144,6 @@ func (s *ContributorService) UpdateContributor(ctx context.Context, id int, upd 
 	contributor, err := updateContributor(ctx, tx, id, upd)
 	if err != nil {
 		return nil, err
-	} else if attachContributorAssociations(ctx, tx, contributor); err != nil {
-		return nil, err
 	}
 	return contributor, nil
 }
@@ -163,9 +168,56 @@ func (s *ContributorService) DeleteContritbutor(ctx context.Context, id int) err
 		}
 	}()
 
-	if err := deleteContirbutor(ctx, tx, id); err != nil {
+	if err = deleteContirbutor(ctx, tx, id); err != nil {
 		return err
 	}
+	return nil
+}
+
+func createSelfContributor(ctx context.Context, tx *Tx, repo *todev.Repo) (err error) {
+	contributor := todev.Contributor{
+		RepoID:    repo.ID,
+		UserID:    repo.UserID,
+		OwnerID:   repo.UserID,
+		IsAdmin:   true,
+		CreatedAt: tx.now,
+		UpdatedAt: tx.now,
+	}
+
+	if err = contributor.Validate(); err != nil {
+		return err
+	}
+
+	err = tx.QueryRowContext(ctx, `
+		INSERT INTO contributors (
+			repo_id,
+			user_id,
+			owner_id,
+			is_admin,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id;`,
+		contributor.RepoID,
+		contributor.UserID,
+		contributor.OwnerID,
+		contributor.IsAdmin,
+		(*NullTime)(&contributor.CreatedAt),
+		(*NullTime)(&contributor.UpdatedAt),
+	).Scan(&contributor.ID)
+
+	if err != nil {
+		return fmt.Errorf("error creating contributor: %w", err)
+	} else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
+		Type: todev.EventTypeContributorAdded,
+		Payload: todev.ContributorAdded{
+			Contributor: &contributor,
+		},
+	}); err != nil {
+		return fmt.Errorf("error publishing event: %w", err)
+	}
+
 	return nil
 }
 
@@ -179,27 +231,33 @@ func createContributor(ctx context.Context, tx *Tx, contributor *todev.Contribut
 
 	if err = checkRepoExists(ctx, tx, contributor.RepoID); err != nil {
 		return err
-	} else if _, err = findUserByID(ctx, tx, contributor.UserID); err != nil {
-		return err
+	} else if err = tx.QueryRowContext(ctx,
+		`SELECT user_id FROM repos WHERE id = $1;`,
+		contributor.RepoID,
+	).Scan(&contributor.OwnerID); err != nil {
+		return fmt.Errorf("error scanning: %w", err)
 	}
 
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO contributors (
 			repo_id,
 			user_id,
+			owner_id,
 			created_at,
 			updated_at
 		)
-		VALUES ($1,$2,$3,$4)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id;`,
 		contributor.RepoID,
 		contributor.UserID,
+		contributor.OwnerID,
 		(*NullTime)(&contributor.CreatedAt),
 		(*NullTime)(&contributor.UpdatedAt),
 	).Scan(&contributor.ID)
 	if err != nil {
 		return fmt.Errorf("error inserting contributor: %w", err)
 	}
+
 	return nil
 }
 
@@ -311,12 +369,35 @@ func updateContributor(ctx context.Context, tx *Tx, id int, upd todev.Contributo
 	contributor, err := findContributorByID(ctx, tx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error updating contributor: %w", err)
-	} else if contributor.UserID != todev.UserIDFromContext(ctx) {
+	} else if err = attachContributorAssociations(ctx, tx, contributor); err != nil {
+		return nil, err
+	} else if !todev.CanEditContributor(ctx, *contributor) {
 		return contributor, todev.Errorf(todev.EUNAUTHORIZED, "You don't have permission to update the contributor.")
 	}
 
-	if v := upd.Tasks; v != nil {
-		contributor.Tasks = v
+	if v := upd.IsAdmin; v != nil {
+		var event todev.Event
+		if *v {
+			event = todev.Event{
+				Type: todev.EventTypeContributorSetAdmin,
+				Payload: todev.ContributorSetAdmin{
+					ID: contributor.ID,
+				},
+			}
+		} else {
+			event = todev.Event{
+				Type: todev.EventTypeContributorSetAdmin,
+				Payload: todev.ContributorResetAdmin{
+					ID: contributor.ID,
+				},
+			}
+		}
+		defer func() {
+			if err == nil {
+				err = tx.conn.EventService.PublishEvent(contributor.RepoID, event)
+			}
+		}()
+		contributor.IsAdmin = *v
 	}
 
 	contributor.UpdatedAt = tx.now
@@ -336,51 +417,41 @@ func updateContributor(ctx context.Context, tx *Tx, id int, upd todev.Contributo
 		return contributor, fmt.Errorf("error updating contributor: %w", err)
 	}
 
-	// if err = publishRepoEvent(ctx, tx, contributor.RepoID, todev.Event{
-	// 	Type: todev.EventTypeContributorTaskAdded,
-	// 	Payload: &todev.ContributorTaskAdded{
-	// 		ID:   id,
-	// 		Task: contributor.Tasks[len(contributor.Tasks)-1],
-	// 	},
-	// }); err != nil {
-	// 	return nil, fmt.Errorf("error publishing contributor event: %w", err)
-	// }
-
 	return contributor, nil
 }
 
 func deleteContirbutor(ctx context.Context, tx *Tx, id int) error {
-	userID := todev.UserIDFromContext(ctx)
-
 	contributor, err := findContributorByID(ctx, tx, id)
 	if err != nil {
 		return err
 	} else if err = attachContributorAssociations(ctx, tx, contributor); err != nil {
 		return err
-	}
-
-	// Verify user is the contributor or ownes parent repo.
-	if contributor.UserID != userID && contributor.Repo.UserID != userID {
-		return todev.Errorf(todev.EUNAUTHORIZED, "You do not have permission to delete the contributor.")
-	}
-
-	// Do not let repo owner delete their own contributor object.
-	if contributor.UserID == contributor.Repo.UserID {
-		return todev.Errorf(todev.ECONFLICT, "Repo owner cannot be deleted.")
-	}
-
-	if _, err = tx.ExecContext(ctx, "DELETE FROM contributors WHERE id = $1", id); err != nil {
+	} else if err = todev.CanDeleteContributor(ctx, *contributor); err != nil {
+		return err
+	} else if _, err = tx.ExecContext(ctx, "DELETE FROM contributors WHERE id = $1", id); err != nil {
 		return fmt.Errorf("error deleting contributor: %w", err)
+	} else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
+		Type: todev.EventTypeContributorDeleted,
+		Payload: todev.ContributorDeleted{
+			ID: contributor.RepoID,
+		},
+	}); err != nil {
+		return fmt.Errorf("error publishing event: %w", err)
 	}
 
 	return nil
 }
 
 func attachContributorAssociations(ctx context.Context, tx *Tx, contributor *todev.Contributor) (err error) {
-	if contributor.Repo, err = findRepoByID(ctx, tx, contributor.RepoID); err != nil {
-		return fmt.Errorf("error attaching contributor repo: %w", err)
-	} else if contributor.User, err = findUserByID(ctx, tx, contributor.UserID); err != nil {
+	repo, err := findRepoByID(ctx, tx, contributor.RepoID)
+	if err != nil {
+		return fmt.Errorf("error retrieving repo by ID: %w", err)
+	}
+	user, err := findUserByID(ctx, tx, contributor.UserID)
+	if err != nil {
 		return fmt.Errorf("error attaching contributor user: %w", err)
 	}
+	contributor.OwnerID = repo.UserID
+	contributor.UserID = user.ID
 	return nil
 }

@@ -225,7 +225,7 @@ func createAuth(ctx context.Context, tx *Tx, auth *todev.Auth) (err error) {
 		(*NullTime)(&auth.UpdatedAt),
 	).Scan(&id)
 	if err != nil {
-		return FormatError(err)
+		return fmt.Errorf("error scanning: %w", err)
 	}
 
 	auth.ID = id
@@ -297,7 +297,7 @@ func findAuths(ctx context.Context, tx *Tx, filter todev.AuthFilter) ([]*todev.A
 	// Execute the query with WHERE clause and LIMIT/OFFSET injected.
 	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
-		return nil, 0, FormatError(err)
+		return nil, 0, fmt.Errorf("error retrieving auths: %w", err)
 	}
 	defer func() {
 		err := rows.Close()
@@ -329,7 +329,7 @@ func findAuths(ctx context.Context, tx *Tx, filter todev.AuthFilter) ([]*todev.A
 		auths = append(auths, &auth)
 	}
 	if err = rows.Err(); err != nil {
-		return nil, 0, FormatError(err)
+		return nil, 0, fmt.Errorf("error iterating over rows: %w", err)
 	}
 
 	return auths, n, nil
@@ -366,7 +366,7 @@ func updateAuth(ctx context.Context, tx *Tx, id int, accessToken, refreshToken s
 		id,
 	)
 	if err != nil {
-		return auth, FormatError(err)
+		return auth, fmt.Errorf("error updating auth: %w", err)
 	}
 
 	return auth, nil
@@ -382,7 +382,7 @@ func deleteAuth(ctx context.Context, tx *Tx, id int) (err error) {
 
 	_, err = tx.ExecContext(ctx, "DELETE FROM auths WHERE id = $1;", id)
 	if err != nil {
-		return FormatError(err)
+		return fmt.Errorf("error deleting auth: %w", err)
 	}
 	return nil
 }

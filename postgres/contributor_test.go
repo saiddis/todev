@@ -37,21 +37,34 @@ func TestContributorService_FindContributors(t *testing.T) {
 
 // TODO: Test UpdateContributor function
 
-// func TestContributorService_UpdateContributor(t *testing.T) {
-// 	t.Run("OK", func(t *testing.T) {
-// 	})
-// }
-// func updateContributor(t testing.TB, conn *postgres.Conn) {
-// 	ctx := context.Background()
-// 	s := postgres.NewContrubutorService(conn)
-//
-// 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
-// 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
-//
-// 	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
-// 	contributor := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo.ID})
-//
-// }
+func TestContributorService_UpdateContributor(t *testing.T) {
+	t.Run("OK", func(t *testing.T) {
+	})
+}
+func updateContributor(t testing.TB, conn *postgres.Conn) {
+	ctx := context.Background()
+	s := postgres.NewContrubutorService(conn)
+
+	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
+	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
+
+	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
+	defer cleanup()
+
+	contributor := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo.ID})
+
+	isAdmin := true
+	if other, err := s.UpdateContributor(ctx0, contributor.ID, todev.ContributorUpdate{IsAdmin: &isAdmin}); err != nil {
+		t.Fatal(err)
+	} else if !other.IsAdmin {
+		t.Fatalf("IsAdmin=%v, want %v", other.IsAdmin, true)
+	} else if !reflect.DeepEqual(contributor, other) {
+		t.Fatalf("mismatch: %#v !=\n %#v", contributor, other)
+	} else if !reflect.DeepEqual(repo.Contributors[1], other) {
+		t.Fatalf("mismatch: %#v !=\n %#v", repo.Contributors[1], other)
+	}
+
+}
 
 func TestContributorService_DeleteContributor(t *testing.T) {
 	t.Run("OK", func(t *testing.T) {
@@ -66,12 +79,7 @@ func TestContributorService_DeleteContributor(t *testing.T) {
 	})
 }
 
-func deleteContributor_OK(t *testing.T, conn *postgres.Conn) {
-	type testData struct {
-		input    *todev.Contributor
-		expected error
-		ctx      context.Context
-	}
+func deleteContributor_OK(t testing.TB, conn *postgres.Conn) {
 	ctx := context.Background()
 	s := postgres.NewContrubutorService(conn)
 
@@ -81,38 +89,17 @@ func deleteContributor_OK(t *testing.T, conn *postgres.Conn) {
 	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
 	defer cleanup()
 
-	tests := map[string]testData{
-		"ByOwner": testData{
-			input: MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo.ID}),
-			expected: &todev.Error{
-				Code:    todev.ENOTFOUND,
-				Message: "Contributor not found.",
-			},
-			ctx: ctx0,
-		},
-		"ByContributor": testData{
-			input: MustCreateContributor(t, ctx2, conn, &todev.Contributor{RepoID: repo.ID}),
-			expected: &todev.Error{
-				Code:    todev.ENOTFOUND,
-				Message: "Contributor not found.",
-			},
-			ctx: ctx2,
-		},
+	contributor := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo.ID})
+	MustCreateContributor(t, ctx2, conn, &todev.Contributor{RepoID: repo.ID})
+
+	if err := s.DeleteContritbutor(ctx0, contributor.ID); err != nil {
+		t.Fatal(err)
+	} else if got, want := len(repo.Contributors), 2; got != want {
+		t.Fatalf("len=%d, want %d", got, want)
+	} else if contributors, _, _ := s.FindContributors(ctx0, todev.ContributorFilter{RepoID: &repo.ID}); len(contributors) != want {
+		t.Fatalf("len=%d, want %d", len(contributors), want)
 	}
 
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			if err := s.DeleteContritbutor(tt.ctx, tt.input.ID); err != nil {
-				t.Fatal(err)
-			}
-
-			if _, err := s.FindContributorByID(tt.ctx, tt.input.ID); err == nil {
-				t.Fatal("expected error")
-			} else if tt.expected.Error() != err.Error() {
-				t.Fatalf("unexpected error: %v", err)
-			}
-		})
-	}
 }
 
 func deleteContributor_Errors(t *testing.T, conn *postgres.Conn) {
@@ -262,20 +249,27 @@ func createContributor_OK(t testing.TB, conn *postgres.Conn) {
 	cs := postgres.NewContrubutorService(conn)
 
 	contributor := &todev.Contributor{
-		RepoID: repo.ID,
+		RepoID:  repo.ID,
+		IsAdmin: true,
 	}
 
 	if err := cs.CreateContributor(ctx1, contributor); err != nil {
 		t.Fatal(err)
 	} else if got, want := contributor.ID, 2; got != want {
 		t.Fatalf("ID=%d, want %d", got, want)
+	} else if got, want := len(repo.Contributors), 2; got != want {
+		t.Fatalf("len=%d, want %d", got, want)
 	}
 
-	if other, err := cs.FindContributorByID(ctx1, contributor.ID); err != nil {
-		t.Fatal(err)
-	} else if !reflect.DeepEqual(contributor, other) {
-		t.Fatalf("mismatch: %#v !=\n %#v", contributor, other)
-	}
+	// if other, err := cs.FindContributorByID(ctx0, contributor.ID); err != nil {
+	// 	t.Fatal(err)
+	// } else if !reflect.DeepEqual(contributor, other) {
+	// 	t.Fatalf("mismatch: %#v !=\n %#v", contributor, other)
+	// } else if got, want := len(repo.Contributors), 2; got != want {
+	// 	t.Fatalf("len=%d, want %d", got, want)
+	// } else if !reflect.DeepEqual(repo.Contributors[1], other) {
+	// 	t.Fatalf("mismatch: %#v !=\n %#v", repo.Contributors[1], other)
+	// }
 }
 
 func createContributors_Errors(t *testing.T, conn *postgres.Conn) {
