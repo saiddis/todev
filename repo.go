@@ -90,7 +90,7 @@ type RepoService interface {
 	FindRepos(ctx context.Context, filter RepoFilter) ([]*Repo, int, error)
 
 	// Creates a new repo and assigns the current user as the owner.
-	CreateRepo(ctx context.Context, repo Repo) error
+	CreateRepo(ctx context.Context, repo *Repo) error
 
 	// Updates an existing repo by ID. Only the repo owner can update a repo.
 	UpdateRepo(ctx context.Context, id int, upd RepoUpdate) (*Repo, error)
@@ -99,10 +99,10 @@ type RepoService interface {
 	DeleteRepo(ctx context.Context, id int) error
 
 	// Sets a task for the given user's contributor in a repo.
-	SetContributorTask(ctx context.Context, repoID int, task Task) error
+	// SetContributorTask(ctx context.Context, repoID int, task Task) error
 
 	// TasksLeftReport returns a report of all the tasks due in this repo.
-	TasksLeftReport(ctx context.Context, start, end time.Time, interval time.Duration) (*RepoTasksReport, error)
+	// TasksLeftReport(ctx context.Context, start, end time.Time, interval time.Duration) (*RepoTasksReport, error)
 }
 
 // RepoFilter represents a filter used by FilterRepo().

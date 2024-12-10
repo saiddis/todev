@@ -63,16 +63,17 @@ type TaskService interface {
 	// Retrieves a single task by ID along with associated conributor ID (if set).
 	FindTaskByID(ctx context.Context, id int) (*Task, error)
 
+	// Retrieves a list of tasks based on filter.
 	FindTasks(ctx context.Context, filter TaskFilter) ([]*Task, int, error)
 
 	// Creates a new task.
-	CreateTask(ctx context.Context, task Task) error
+	CreateTask(ctx context.Context, task *Task) error
 
 	// Updates an existing task by ID. Only the repo owner can update a task.
 	UpdateTask(ctx context.Context, id int, upd TaskUpdate) (*Task, error)
 
 	// Permanently deletes a taks by ID. Only the repo owner can delete a task.
-	DeleteTaks(ctx context.Context, id int) error
+	DeleteTask(ctx context.Context, id int) error
 }
 
 // TaskFilter represents a filter used by FindTasks().

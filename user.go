@@ -49,7 +49,7 @@ type UserService interface {
 	FindUserByID(ctx context.Context, id int) (*User, error)
 
 	// Retrivieves a list of users by filter.
-	FindUsers(ctx context.Context)
+	FindUsers(ctx context.Context, filter UserFilter) ([]*User, int, error)
 
 	// Creates a new user.
 	CreateUser(ctx context.Context, user *User) error

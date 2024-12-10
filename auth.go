@@ -64,7 +64,13 @@ type AuthService interface {
 	FindAuthByID(ctx context.Context, id int) (*Auth, error)
 
 	// Retrieves authentication objects based on filter.
-	FindAuths(ctx context.Context)
+	FindAuths(ctx context.Context, filter AuthFilter) ([]*Auth, int, error)
+
+	// Creates a new auth object.
+	CreateAuth(ctx context.Context, auth *Auth) error
+
+	// Pemanently removes an auth object from the system.
+	DeleteAuth(ctx context.Context, id int) error
 }
 
 // AuthFilter represents a filter accepted by FindAuths().

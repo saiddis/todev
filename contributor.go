@@ -57,7 +57,7 @@ type ContributorService interface {
 	FindContributors(ctx context.Context, filter ContributorFilter) ([]*Contributor, int, error)
 
 	// Creates a new contributor on a repo for the current user.
-	CreateContributor(ctx context.Context, contrib Contributor) error
+	CreateContributor(ctx context.Context, contrib *Contributor) error
 
 	// Updates the value of a contributor.
 	UpdateContributor(ctx context.Context, id int, upd ContributorUpdate) (*Contributor, error)
