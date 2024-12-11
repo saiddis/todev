@@ -16,7 +16,7 @@ type AuthService struct {
 }
 
 func (s *AuthService) FindAuthByID(ctx context.Context, id int) (*todev.Auth, error) {
-	return s.FindAuthByID(ctx, id)
+	return s.FindAuthByIDFn(ctx, id)
 }
 
 func (s *AuthService) FindAuths(ctx context.Context, filter todev.AuthFilter) ([]*todev.Auth, int, error) {

@@ -21,17 +21,17 @@ func (s *ContributorService) FindContributorByID(ctx context.Context, id int) (*
 }
 
 func (s *ContributorService) FindContributors(ctx context.Context, filter todev.ContributorFilter) ([]*todev.Contributor, int, error) {
-	return s.FindContributors(ctx, filter)
+	return s.FindContributorsFn(ctx, filter)
 }
 
 func (s *ContributorService) CreateContributor(ctx context.Context, contributor *todev.Contributor) error {
-	return s.CreateContributor(ctx, contributor)
+	return s.CreateContributorFn(ctx, contributor)
 }
 
 func (s *ContributorService) UpdateContributor(ctx context.Context, id int, upd todev.ContributorUpdate) (*todev.Contributor, error) {
-	return s.UpdateContributor(ctx, id, upd)
+	return s.UpdateContributorFn(ctx, id, upd)
 }
 
 func (s *ContributorService) DeleteContributor(ctx context.Context, id int) error {
-	return s.DeleteContributor(ctx, id)
+	return s.DeleteContributorFn(ctx, id)
 }

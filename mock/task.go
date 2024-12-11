@@ -21,17 +21,17 @@ func (s *TaskService) FindTaskByID(ctx context.Context, id int) (*todev.Task, er
 }
 
 func (s *TaskService) FindTasks(ctx context.Context, filter todev.TaskFilter) ([]*todev.Task, int, error) {
-	return s.FindTasks(ctx, filter)
+	return s.FindTasksFn(ctx, filter)
 }
 
 func (s *TaskService) CreateTask(ctx context.Context, task *todev.Task) error {
-	return s.CreateTask(ctx, task)
+	return s.CreateTaskFn(ctx, task)
 }
 
 func (s *TaskService) UpdateTask(ctx context.Context, id int, upd todev.TaskUpdate) (*todev.Task, error) {
-	return s.UpdateTask(ctx, id, upd)
+	return s.UpdateTaskFn(ctx, id, upd)
 }
 
 func (s *TaskService) DeleteTask(ctx context.Context, id int) error {
-	return s.DeleteTask(ctx, id)
+	return s.DeleteTaskFn(ctx, id)
 }

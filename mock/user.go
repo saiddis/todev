@@ -17,7 +17,7 @@ type UserService struct {
 }
 
 func (s *UserService) FindUserByID(ctx context.Context, id int) (*todev.User, error) {
-	return s.FindUserByID(ctx, id)
+	return s.FindUserByIDFn(ctx, id)
 }
 
 func (s *UserService) FindUsers(ctx context.Context, filter todev.UserFilter) ([]*todev.User, int, error) {

@@ -21,17 +21,17 @@ func (s *RepoService) FindRepoByID(ctx context.Context, id int) (*todev.Repo, er
 }
 
 func (s *RepoService) FindRepos(ctx context.Context, filter todev.RepoFilter) ([]*todev.Repo, int, error) {
-	return s.FindRepos(ctx, filter)
+	return s.FindReposFn(ctx, filter)
 }
 
 func (s *RepoService) CreateRepo(ctx context.Context, repo *todev.Repo) error {
-	return s.CreateRepo(ctx, repo)
+	return s.CreateRepoFn(ctx, repo)
 }
 
 func (s *RepoService) UpdateRepo(ctx context.Context, id int, upd todev.RepoUpdate) (*todev.Repo, error) {
-	return s.UpdateRepo(ctx, id, upd)
+	return s.UpdateRepoFn(ctx, id, upd)
 }
 
 func (s *RepoService) DeleteRepo(ctx context.Context, id int) error {
-	return s.DeleteRepo(ctx, id)
+	return s.DeleteRepoFn(ctx, id)
 }
