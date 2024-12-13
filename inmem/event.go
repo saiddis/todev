@@ -2,67 +2,69 @@ package inmem
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/saiddis/todev"
 )
 
-// EventBufferSize is the buffer size of the channel for each subscription.
+// EventBufferSize is the buffer size of the channel for each subsciption.
 const EventBufferSize = 16
 
-// EventService is the concrete implementation of the EventService interface.
+var _ todev.EventService = (*EventService)(nil)
+
+// EventService represents a service for managing events in the system.
 type EventService struct {
-	mu sync.RWMutex
+	mu sync.Mutex
 	m  map[int]map[*Subscription]struct{} // subscriptions by user ID
 }
 
-// NewEventService creates and initializes a new EventService.
 func NewEventService() *EventService {
 	return &EventService{
 		m: make(map[int]map[*Subscription]struct{}),
 	}
 }
 
-// PublishEvent publishes an event to all subscriptions of a user.
-// If a subscription's channel is full, it will be unsubscribed.
-func (s *EventService) PublishEvent(userID int, event todev.Event) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+// PublishEvent publishes events to all of a user's subscriptions.
+//
+// If user's channel is full then the user is disconnected. This is to prevent
+// slow users from blocking progress.
+func (s *EventService) PublishEvent(userID int, event todev.Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	subs, ok := s.m[userID]
-	if !ok || len(subs) == 0 {
-		return fmt.Errorf("no subscriptions found for user ID %d", userID)
+	// Skip if the user is not subscribed at all.
+	subs := s.m[userID]
+	if len(subs) == 0 {
+		return
 	}
 
+	// Publish event to all subscriptions for the user.
 	for sub := range subs {
 		select {
-		case sub.eventChan <- event:
+		case sub.c <- event:
 		default:
 			s.unsubscribe(sub)
 		}
 	}
-	return nil
 }
 
-// Subscribe creates a new subscription for the current user's events.
+// Subscribe creates a new subscription for the currently logged in user.
+// Returns ENOTAUTHORIZED if the user is not logged in.
 func (s *EventService) Subscribe(ctx context.Context) (todev.Subscription, error) {
-	userID, ok := ctx.Value("userID").(int)
-	if !ok || userID == 0 {
-		return nil, errors.New("user ID is missing or invalid in context")
+	userID := todev.UserIDFromContext(ctx)
+	if userID == 0 {
+		return nil, todev.Errorf(todev.EUNAUTHORIZED, "Must be logged in to subscribe to events.")
 	}
 
+	// Create new subscription for the user.
 	sub := &Subscription{
-		service:   s,
-		userID:    userID,
-		eventChan: make(chan todev.Event, EventBufferSize),
-		doneChan:  make(chan struct{}),
+		service: s,
+		userID:  userID,
+		c:       make(chan todev.Event, EventBufferSize),
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	// Add to list of user's subscriptions.
+	// Subscriptions stored as a map for each user, so we can easily delete them.
 	subs, ok := s.m[userID]
 	if !ok {
 		subs = make(map[*Subscription]struct{})
@@ -73,28 +75,19 @@ func (s *EventService) Subscribe(ctx context.Context) (todev.Subscription, error
 	return sub, nil
 }
 
-// GetSubscribtion returns the subscriptions for a user if it exists.
-func (s *EventService) GetSubscribtion(userID int) (todev.Subscription, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	subs, ok := s.m[userID]
-	if !ok || len(subs) == 0 {
-		return nil, false
-	}
-
-	// Return the first subscription (arbitrary choice since we allow multiple).
-	for sub := range subs {
-		return sub, true
-	}
-	return nil, false
+func (s *EventService) Unsubscribe(sub *Subscription) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.unsubscribe(sub)
 }
 
 func (s *EventService) unsubscribe(sub *Subscription) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	// Only close the underlying channel once. Otherwise Go will panic.
+	sub.once.Do(func() {
+		close(sub.c)
+	})
 
-	// Find subscription map for the user.
+	// Find subscription map for user. Exit if one does not exist.
 	subs, ok := s.m[sub.userID]
 	if !ok {
 		return
@@ -102,38 +95,29 @@ func (s *EventService) unsubscribe(sub *Subscription) {
 
 	delete(subs, sub)
 
-	// Remove the user from the map if no subscriptions remain.
+	// Stop tracking user if they no longer have any subscriptons.
 	if len(subs) == 0 {
 		delete(s.m, sub.userID)
 	}
-
-	// Ensure the subscription is cleaned up.
-	sub.once.Do(func() {
-		close(sub.eventChan)
-		close(sub.doneChan)
-	})
 }
 
-// SubscriptionImpl is the concrete implementation of the Subscription interface.
+var _ todev.Subscription = (*Subscription)(nil)
+
+// Subscription represensts a stream of user related events
 type Subscription struct {
-	service   *EventService
-	userID    int
-	eventChan chan todev.Event
-	doneChan  chan struct{}
-	once      sync.Once
+	service *EventService // service subscription was created from
+	userID  int           // subscribed user
+
+	c    chan todev.Event // channel of events
+	once sync.Once        // ensures c is only closed once
 }
 
-// C returns the channel for receiving events.
-func (s *Subscription) C() <-chan todev.Event {
-	return s.eventChan
-}
-
-// Done returns the channel used for unsubscribing.
-func (s *Subscription) Done() chan struct{} {
-	return s.doneChan
-}
-
-// Close unsubscribes the subscription from the service and cleans up resources.
+// Close disconnects the subscription from the service it was created from.
 func (s *Subscription) Close() {
-	s.service.unsubscribe(s)
+	s.service.Unsubscribe(s)
+}
+
+// C returns a recieve only channel of user-related events.
+func (s *Subscription) C() <-chan todev.Event {
+	return s.c
 }
