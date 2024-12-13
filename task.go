@@ -79,6 +79,7 @@ type TaskService interface {
 // TaskFilter represents a filter used by FindTasks().
 type TaskFilter struct {
 	ID            *int  `json:"id"`
+	UserID        *int  `json:"userID"`
 	ContributorID *int  `json:"contributorID"`
 	RepoID        *int  `json:"repoID"`
 	IsCompleted   *bool `json:"isCompleted"`

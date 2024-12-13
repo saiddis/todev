@@ -7,6 +7,9 @@ import (
 
 // Contributor represensts a contributor to s repo.
 type Contributor struct {
+	// Tasks that are visible and/or due to the current contributor.
+	Tasks []*Task
+
 	// Timestamps for contributor creation and last update.
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

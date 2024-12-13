@@ -41,3 +41,9 @@ type FindReposResponse struct {
 	Repos []*Repo `json:"repos"`
 	N     int     `json:"n"`
 }
+
+// FindTasksResponse represents payload for "GET /tasks".
+type FindTasksResponse struct {
+	Tasks []*Task `json:"tasks"`
+	N     int     `json:"n"`
+}
