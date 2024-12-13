@@ -37,7 +37,7 @@ func (c *Client) newRequest(ctx context.Context, method, url string, body io.Rea
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 	if user := todev.UserFromContext(ctx); user != nil && user.APIKey != "" {
-		req.Header.Set("Authentication", "Bearer"+user.APIKey)
+		req.Header.Set("Authorization", "Bearer "+user.APIKey)
 	}
 
 	req.Header.Set("Accept", "application/json")
