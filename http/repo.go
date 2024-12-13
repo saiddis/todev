@@ -40,7 +40,6 @@ func (s *Server) registerRepoRoutes(r *mux.Router) {
 //
 // The endpoint works with HTML, JSON and CSV formats.
 func (s *Server) handleRepoIndex(w http.ResponseWriter, r *http.Request) {
-	log.Print("handleRepoIndex called")
 	var filter todev.RepoFilter
 	switch r.Header.Get("Content-type") {
 	case "application/json":
@@ -49,10 +48,7 @@ func (s *Server) handleRepoIndex(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	default:
-		offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
-		if err != nil {
-			Error(w, r, fmt.Errorf("error converting offset: %v", err))
-		}
+		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 		filter.Offset = offset
 		filter.Limit = 20
 	}
@@ -100,14 +96,11 @@ func (s *Server) handleRepoView(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleRepoCreate handles the "POST /repos" and "POST /repos/new" route.
-// It reads and writes data with HTML or JSON.
 func (s *Server) handleRepoCreate(w http.ResponseWriter, r *http.Request) {
-	log.Print("handleRepo called")
 	var repo todev.Repo
 	switch r.Header.Get("Content-type") {
 	case "application/json":
 		if err := json.NewDecoder(r.Body).Decode(&repo); err != nil {
-			log.Printf("error creating repo: %v", err)
 			Error(w, r, todev.Errorf(todev.EINVALID, "Invalid JSON body"))
 			return
 		}
@@ -117,8 +110,7 @@ func (s *Server) handleRepoCreate(w http.ResponseWriter, r *http.Request) {
 
 	err := s.RepoService.CreateRepo(r.Context(), &repo)
 	if err != nil {
-		log.Printf("error creating repo: %v", err)
-		Error(w, r, err)
+		Error(w, r, fmt.Errorf("error creating repo: %v", err))
 		return
 	}
 
