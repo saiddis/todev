@@ -82,23 +82,27 @@ type TaskDeleted struct {
 
 type EventService interface {
 	// Publiches an event to a user's event listeners.
-	PublishEvent(id int, event Event) error
+	PublishEvent(id int, event Event)
 
 	// Creates a subscription for the current user's events.
 	Subscribe(ctx context.Context) (Subscription, error)
-
-	// Returns subscribtions and true if exists, otherwise Subscribtion
-	// zero value and false.
-	GetSubscribtion(id int) (Subscription, bool)
 }
 
 type Subscription interface {
 	// Event stream for all user's event.
 	C() <-chan Event
 
-	// For unsubscribing from service.
-	Done() chan struct{}
-
 	// For cleaning up after calling Done().
 	Close()
+}
+
+// NopEventService returns an event service that does nothing.
+func NopEventService() EventService { return &nopEventService{} }
+
+type nopEventService struct{}
+
+func (*nopEventService) PublishEvent(id int, event Event) {}
+
+func (*nopEventService) Subscribe(ctx context.Context) (Subscription, error) {
+	panic("not implemented")
 }
