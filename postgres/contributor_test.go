@@ -48,8 +48,7 @@ func updateContributor(t testing.TB, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
 
-	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
-	defer cleanup()
+	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
 
 	contributor := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo.ID})
 
@@ -86,18 +85,15 @@ func deleteContributor_OK(t testing.TB, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
 	_, ctx2 := MustCreateUser(t, ctx, conn, &todev.User{Name: "george"})
-	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
-	defer cleanup()
+	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
 
 	contributor := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo.ID})
 	MustCreateContributor(t, ctx2, conn, &todev.Contributor{RepoID: repo.ID})
 
 	if err := s.DeleteContritbutor(ctx0, contributor.ID); err != nil {
 		t.Fatal(err)
-	} else if got, want := len(repo.Contributors), 2; got != want {
-		t.Fatalf("len=%d, want %d", got, want)
-	} else if contributors, _, _ := s.FindContributors(ctx0, todev.ContributorFilter{RepoID: &repo.ID}); len(contributors) != want {
-		t.Fatalf("len=%d, want %d", len(contributors), want)
+	} else if contributors, _, _ := s.FindContributors(ctx0, todev.ContributorFilter{RepoID: &repo.ID}); len(contributors) != 2 {
+		t.Fatalf("len=%d, want %d", len(contributors), 2)
 	}
 
 }
@@ -114,8 +110,7 @@ func deleteContributor_Errors(t *testing.T, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
 	_, ctx2 := MustCreateUser(t, ctx, conn, &todev.User{Name: "george"})
-	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
-	defer cleanup()
+	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo"})
 
 	MustCreateContributor(t, ctx2, conn, &todev.Contributor{RepoID: repo.ID})
 
@@ -157,15 +152,13 @@ func findContributors_RestrictToRepoMember(t testing.TB, conn *postgres.Conn) {
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
 	_, ctx2 := MustCreateUser(t, ctx, conn, &todev.User{Name: "george"})
 
-	repo0, cleanup0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
-	defer cleanup0()
+	repo0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
 
 	contributor0 := MustFindContributorByID(t, ctx0, conn, 1)
 	contributor1 := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo0.ID})
 	contributor2 := MustCreateContributor(t, ctx2, conn, &todev.Contributor{RepoID: repo0.ID})
 
-	repo1, cleanup1 := MustCreateRepo(t, ctx1, conn, &todev.Repo{Name: "repo1"})
-	defer cleanup1()
+	repo1 := MustCreateRepo(t, ctx1, conn, &todev.Repo{Name: "repo1"})
 
 	MustCreateContributor(t, ctx0, conn, &todev.Contributor{RepoID: repo1.ID})
 
@@ -198,11 +191,9 @@ func findContributors_FilterByRepoID(t testing.TB, conn *postgres.Conn) {
 	ctx := context.Background()
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
 
-	repo0, cleanup0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
-	defer cleanup0()
+	repo0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
 
-	_, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
-	defer cleanup()
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
 
 	// These repos will automatically create owner-contributor(1, 2)
 	contributors, n, err := s.FindContributors(ctx0, todev.ContributorFilter{RepoID: &repo0.ID})
@@ -222,8 +213,7 @@ func findContributors_FilterByUserID(t testing.TB, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob"})
 	user1, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy"})
 
-	repo0, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
-	defer cleanup()
+	repo0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo0"})
 	contributor0 := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo0.ID})
 
 	// These repos will automatically create owner-contributor(1, 2)
@@ -243,8 +233,7 @@ func createContributor_OK(t testing.TB, conn *postgres.Conn) {
 	ctx := context.Background()
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
-	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
-	defer cleanup()
+	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
 
 	cs := postgres.NewContrubutorService(conn)
 
@@ -257,15 +246,14 @@ func createContributor_OK(t testing.TB, conn *postgres.Conn) {
 		t.Fatal(err)
 	} else if got, want := contributor.ID, 2; got != want {
 		t.Fatalf("ID=%d, want %d", got, want)
-	} else if got, want := len(repo.Contributors), 2; got != want {
-		t.Fatalf("len=%d, want %d", got, want)
 	}
 
-	// if other, err := cs.FindContributorByID(ctx0, contributor.ID); err != nil {
-	// 	t.Fatal(err)
-	// } else if !reflect.DeepEqual(contributor, other) {
-	// 	t.Fatalf("mismatch: %#v !=\n %#v", contributor, other)
-	// } else if got, want := len(repo.Contributors), 2; got != want {
+	if other, err := cs.FindContributorByID(ctx0, contributor.ID); err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(contributor, other) {
+		t.Fatalf("mismatch: %#v !=\n %#v", contributor, other)
+	}
+	// else if got, want := len(repo.Contributors), 2; got != want {
 	// 	t.Fatalf("len=%d, want %d", got, want)
 	// } else if !reflect.DeepEqual(repo.Contributors[1], other) {
 	// 	t.Fatalf("mismatch: %#v !=\n %#v", repo.Contributors[1], other)
@@ -300,8 +288,7 @@ func createContributors_Errors(t *testing.T, conn *postgres.Conn) {
 	}
 
 	cs := postgres.NewContrubutorService(conn)
-	_, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
-	defer cleanup()
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			if err := cs.CreateContributor(tt.ctx, tt.input); err.Error() != tt.expected.Error() {

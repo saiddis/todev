@@ -129,8 +129,7 @@ func updateRepo_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewRepoService(conn)
 
 	_, ctx0 := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "said", Email: "said@gmail.com"})
-	repo, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
-	defer cleanup()
+	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
 	newName := "myrepo"
 	uu, err := s.UpdateRepo(ctx0, repo.ID, todev.RepoUpdate{Name: &newName})
 	if err != nil {
@@ -152,12 +151,9 @@ func findRepos_owned(t testing.TB, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
 
-	_, cleanup0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
-	defer cleanup0()
-	_, cleanup1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
-	defer cleanup1()
-	_, cleanup2 := MustCreateRepo(t, ctx1, conn, &todev.Repo{Name: "repo3"})
-	defer cleanup2()
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
+	MustCreateRepo(t, ctx1, conn, &todev.Repo{Name: "repo3"})
 
 	if repos, n, err := s.FindRepos(ctx0, todev.RepoFilter{}); err != nil {
 		t.Fatal(err)
@@ -179,11 +175,9 @@ func findRepos_MemberOf(t testing.TB, conn *postgres.Conn) {
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 	user1, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
 
-	repo1, cleanup1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
-	defer cleanup1()
+	repo1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
 
-	_, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
-	defer cleanup()
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
 
 	MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo1.ID, UserID: user1.ID})
 
@@ -203,11 +197,9 @@ func findRepos_InviteCode(t testing.TB, conn *postgres.Conn) {
 	ctx := context.Background()
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
 
-	repo1, cleanup1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
-	defer cleanup1()
+	repo1 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
 
-	_, cleanup := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
-	defer cleanup()
+	MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo2"})
 
 	if repos, n, err := s.FindRepos(ctx0, todev.RepoFilter{InviteCode: &repo1.InviteCode}); err != nil {
 		t.Fatal(err)
@@ -223,7 +215,7 @@ func findRepos_InviteCode(t testing.TB, conn *postgres.Conn) {
 func deleteRepo_OK(t testing.TB, conn *postgres.Conn) {
 	s := postgres.NewRepoService(conn)
 	_, ctx0 := MustCreateUser(t, context.Background(), conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
-	repo, _ := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
+	repo := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "NAME"})
 
 	if err := s.DeleteRepo(ctx0, repo.ID); err != nil {
 		t.Fatal(err)
@@ -241,13 +233,11 @@ func MustFindRepoByID(tb testing.TB, ctx context.Context, conn *postgres.Conn, i
 	return repo
 }
 
-func MustCreateRepo(tb testing.TB, ctx context.Context, conn *postgres.Conn, repo *todev.Repo) (*todev.Repo, func()) {
+func MustCreateRepo(tb testing.TB, ctx context.Context, conn *postgres.Conn, repo *todev.Repo) *todev.Repo {
 	tb.Helper()
 	s := postgres.NewRepoService(conn)
 	if err := s.CreateRepo(ctx, repo); err != nil {
 		tb.Fatalf("MustCreateRepo: %v", err)
 	}
-	return repo, func() {
-		repo.Subscription.Done() <- struct{}{}
-	}
+	return repo
 }

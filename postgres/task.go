@@ -43,7 +43,7 @@ func (s *TaskService) CreateTask(ctx context.Context, task *todev.Task) error {
 		return err
 	} else if task.OwnerID != todev.UserIDFromContext(ctx) {
 		return todev.Errorf(todev.ECONFLICT, "Only repo owner can create tasks.")
-	} else if err = s.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+	} else if err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
 		Type: todev.EventTypeTaskAdded,
 		Payload: todev.TaskAdded{
 			Task: task,
@@ -228,6 +228,10 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 		argIndex++
 		where, args = append(where, fmt.Sprintf("t.id = $%d", argIndex)), append(args, *v)
 	}
+	if v := filter.UserID; v != nil {
+		argIndex++
+		where, args = append(where, fmt.Sprintf("u.id = $%d", argIndex)), append(args, *v)
+	}
 	if v := filter.RepoID; v != nil {
 		argIndex++
 		where, args = append(where, fmt.Sprintf("t.repo_id = $%d", argIndex)), append(args, *v)
@@ -335,7 +339,7 @@ func updateTask(ctx context.Context, tx *Tx, id int, upd todev.TaskUpdate) (_ *t
 	if v := upd.ContributorID; v != nil {
 		defer func() {
 			if err == nil {
-				err = tx.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+				err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
 					Type: todev.EventTypeTaskAdded,
 					Payload: todev.TaskContributorIDChanged{
 						ID:    task.ID,
@@ -348,7 +352,7 @@ func updateTask(ctx context.Context, tx *Tx, id int, upd todev.TaskUpdate) (_ *t
 	}
 	if v := upd.Description; v != nil {
 		defer func() {
-			err = tx.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+			err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
 				Type: todev.EventTypeTaskDescriptionChanged,
 				Payload: todev.TaskDescriptionChanged{
 					ID:    task.ID,
@@ -360,7 +364,7 @@ func updateTask(ctx context.Context, tx *Tx, id int, upd todev.TaskUpdate) (_ *t
 	}
 	if upd.ToggleCompletion {
 		defer func() {
-			err = tx.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+			err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
 				Type: todev.EventTypeTaskCompletionToggled,
 				Payload: todev.TaskCompletionToggled{
 					ID: task.ID,
@@ -419,7 +423,7 @@ func deleteTask(ctx context.Context, tx *Tx, id int) error {
 
 	if _, err = tx.ExecContext(ctx, "DELETE FROM tasks WHERE id = $1;", id); err != nil {
 		return fmt.Errorf("error deleting task: %w", err)
-	} else if err = tx.conn.EventService.PublishEvent(task.RepoID, todev.Event{
+	} else if err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
 		Type: todev.EventTypeTaskDeleted,
 		Payload: todev.TaskDeleted{
 			ID: task.ID,
@@ -428,13 +432,6 @@ func deleteTask(ctx context.Context, tx *Tx, id int) error {
 		return err
 	}
 
-	return nil
-}
-
-func publishTaskEvent(tx *Tx, id int, event todev.Event) error {
-	if err := tx.conn.EventService.PublishEvent(id, event); err != nil {
-		return err
-	}
 	return nil
 }
 

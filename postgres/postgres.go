@@ -57,11 +57,9 @@ type Conn struct {
 
 func New(dsn string) *Conn {
 	conn := &Conn{
-		DSN: dsn,
-		Now: time.Now,
-		EventService: &EventService{
-			Repos: make(map[int]Subscribtion),
-		},
+		DSN:          dsn,
+		Now:          time.Now,
+		EventService: todev.NopEventService(),
 	}
 
 	conn.Ctx, conn.Cancel = context.WithCancel(context.Background())

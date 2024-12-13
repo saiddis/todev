@@ -47,14 +47,15 @@ func (s *ContributorService) CreateContributor(ctx context.Context, contributor 
 		return err
 	} else if err = attachContributorAssociations(ctx, tx, contributor); err != nil {
 		return err
-	} else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
-		Type: todev.EventTypeContributorAdded,
-		Payload: todev.ContributorAdded{
-			Contributor: contributor,
-		},
-	}); err != nil {
-		return fmt.Errorf("error publishing event: %w", err)
 	}
+	// else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
+	// 	Type: todev.EventTypeContributorAdded,
+	// 	Payload: todev.ContributorAdded{
+	// 		Contributor: contributor,
+	// 	},
+	// }); err != nil {
+	// 	return fmt.Errorf("error publishing event: %w", err)
+	// }
 	return nil
 }
 
@@ -209,14 +210,16 @@ func createSelfContributor(ctx context.Context, tx *Tx, repo *todev.Repo) (err e
 
 	if err != nil {
 		return fmt.Errorf("error creating contributor: %w", err)
-	} else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
-		Type: todev.EventTypeContributorAdded,
-		Payload: todev.ContributorAdded{
-			Contributor: &contributor,
-		},
-	}); err != nil {
-		return fmt.Errorf("error publishing event: %w", err)
 	}
+	repo.Contributors = append(repo.Contributors, &contributor)
+	// else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
+	// 	Type: todev.EventTypeContributorAdded,
+	// 	Payload: todev.ContributorAdded{
+	// 		Contributor: &contributor,
+	// 	},
+	// }); err != nil {
+	// 	return fmt.Errorf("error publishing event: %w", err)
+	// }
 
 	return nil
 }
@@ -244,15 +247,17 @@ func createContributor(ctx context.Context, tx *Tx, contributor *todev.Contribut
 			user_id,
 			owner_id,
 			created_at,
-			updated_at
+			updated_at,
+			is_admin
 		)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id;`,
 		contributor.RepoID,
 		contributor.UserID,
 		contributor.OwnerID,
 		(*NullTime)(&contributor.CreatedAt),
 		(*NullTime)(&contributor.UpdatedAt),
+		contributor.IsAdmin,
 	).Scan(&contributor.ID)
 	if err != nil {
 		return fmt.Errorf("error inserting contributor: %w", err)
@@ -304,6 +309,7 @@ func findContributors(ctx context.Context, tx *Tx, filter todev.ContributorFilte
 			c.user_id,
 			c.created_at,
 			c.updated_at,
+			c.is_admin,
 			r.user_id AS repo_user_id,
 			COUNT(*) OVER()
 		FROM contributors c
@@ -340,6 +346,7 @@ func findContributors(ctx context.Context, tx *Tx, filter todev.ContributorFilte
 			&contributor.UserID,
 			(*NullTime)(&contributor.CreatedAt),
 			(*NullTime)(&contributor.UpdatedAt),
+			&contributor.IsAdmin,
 			&repoUserID,
 			&n,
 		); err != nil {
@@ -376,27 +383,27 @@ func updateContributor(ctx context.Context, tx *Tx, id int, upd todev.Contributo
 	}
 
 	if v := upd.IsAdmin; v != nil {
-		var event todev.Event
-		if *v {
-			event = todev.Event{
-				Type: todev.EventTypeContributorSetAdmin,
-				Payload: todev.ContributorSetAdmin{
-					ID: contributor.ID,
-				},
-			}
-		} else {
-			event = todev.Event{
-				Type: todev.EventTypeContributorSetAdmin,
-				Payload: todev.ContributorResetAdmin{
-					ID: contributor.ID,
-				},
-			}
-		}
-		defer func() {
-			if err == nil {
-				err = tx.conn.EventService.PublishEvent(contributor.RepoID, event)
-			}
-		}()
+		// var event todev.Event
+		// if *v {
+		// 	event = todev.Event{
+		// 		Type: todev.EventTypeContributorSetAdmin,
+		// 		Payload: todev.ContributorSetAdmin{
+		// 			ID: contributor.ID,
+		// 		},
+		// 	}
+		// } else {
+		// 	event = todev.Event{
+		// 		Type: todev.EventTypeContributorSetAdmin,
+		// 		Payload: todev.ContributorResetAdmin{
+		// 			ID: contributor.ID,
+		// 		},
+		// 	}
+		// }
+		// defer func() {
+		// 	if err == nil {
+		// 		err = tx.conn.EventService.PublishEvent(contributor.RepoID, event)
+		// 	}
+		// }()
 		contributor.IsAdmin = *v
 	}
 
@@ -430,14 +437,15 @@ func deleteContirbutor(ctx context.Context, tx *Tx, id int) error {
 		return err
 	} else if _, err = tx.ExecContext(ctx, "DELETE FROM contributors WHERE id = $1", id); err != nil {
 		return fmt.Errorf("error deleting contributor: %w", err)
-	} else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
-		Type: todev.EventTypeContributorDeleted,
-		Payload: todev.ContributorDeleted{
-			ID: contributor.RepoID,
-		},
-	}); err != nil {
-		return fmt.Errorf("error publishing event: %w", err)
 	}
+	// else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
+	// 	Type: todev.EventTypeContributorDeleted,
+	// 	Payload: todev.ContributorDeleted{
+	// 		ID: contributor.RepoID,
+	// 	},
+	// }); err != nil {
+	// 	return fmt.Errorf("error publishing event: %w", err)
+	// }
 
 	return nil
 }
