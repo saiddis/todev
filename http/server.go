@@ -107,11 +107,14 @@ func NewServer() *Server {
 		s.registerAuthRoutes(r)
 	}
 
-	// Register authentication routes.
+	// Register authenticated routes.
 	{
 		r := router.PathPrefix("/").Subrouter()
 		r.Use(s.requireAuth)
 		s.registerRepoRoutes(r)
+		s.registerContributorRoutes(r)
+		s.registerTaskRoutes(r)
+		s.registerEventRoutes(r)
 	}
 
 	return s
@@ -298,7 +301,6 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-
 		// Otherwise save the current URL (without scheme/host).
 		redirectURL := r.URL
 		redirectURL.Scheme, redirectURL.Host = "", ""
