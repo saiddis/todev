@@ -12,6 +12,12 @@ type EventService struct {
 	Repos map[int]Subscribtion
 }
 
+func NewEventService() *EventService {
+	return &EventService{
+		Repos: map[int]Subscribtion{},
+	}
+}
+
 func (s EventService) PublishEvent(repoID int, event todev.Event) error {
 	if sub, ok := s.Repos[repoID]; ok {
 		sub.Event <- event
@@ -34,7 +40,7 @@ func (s EventService) Subscribe(ctx context.Context) (todev.Subscription, error)
 	return Subscribtion{}, errors.New("failed to convert value from context")
 }
 
-func (s EventService) GetSubscribtion(repoID int) (todev.Subscription, bool) {
+func (s *EventService) GetSubscribtion(repoID int) (todev.Subscription, bool) {
 	sub, ok := s.Repos[repoID]
 	return sub, ok
 }

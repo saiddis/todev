@@ -90,7 +90,7 @@ func deleteContributor_OK(t testing.TB, conn *postgres.Conn) {
 	contributor := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo.ID})
 	MustCreateContributor(t, ctx2, conn, &todev.Contributor{RepoID: repo.ID})
 
-	if err := s.DeleteContritbutor(ctx0, contributor.ID); err != nil {
+	if err := s.DeleteContributor(ctx0, contributor.ID); err != nil {
 		t.Fatal(err)
 	} else if contributors, _, _ := s.FindContributors(ctx0, todev.ContributorFilter{RepoID: &repo.ID}); len(contributors) != 2 {
 		t.Fatalf("len=%d, want %d", len(contributors), 2)
@@ -135,7 +135,7 @@ func deleteContributor_Errors(t *testing.T, conn *postgres.Conn) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			if err := s.DeleteContritbutor(tt.ctx, tt.input.ID); err == nil {
+			if err := s.DeleteContributor(tt.ctx, tt.input.ID); err == nil {
 				t.Fatal("expected error")
 			} else if tt.expected.Error() != err.Error() {
 				t.Fatalf("unexpected error: %v", err)

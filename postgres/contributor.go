@@ -9,6 +9,8 @@ import (
 	"github.com/saiddis/todev"
 )
 
+var _ todev.ContributorService = (*ContributorService)(nil)
+
 type ContributorService struct {
 	conn *Conn
 }
@@ -151,7 +153,7 @@ func (s *ContributorService) UpdateContributor(ctx context.Context, id int, upd 
 
 // DeleteContritbutor permanently removes contributor by ID. Only the repo owner
 // and contributor's associated user can delete a contributor.
-func (s *ContributorService) DeleteContritbutor(ctx context.Context, id int) error {
+func (s *ContributorService) DeleteContributor(ctx context.Context, id int) error {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("error beginning transaction: %w", err)
