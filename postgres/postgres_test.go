@@ -5,35 +5,14 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"log"
 	"net/url"
-	"sync"
 	"testing"
 
-	"github.com/joho/godotenv"
+	"github.com/saiddis/todev"
 	"github.com/saiddis/todev/postgres"
 )
 
-var (
-	once    sync.Once
-	envData map[string]string
-)
-
-// GetEnv returns environment variables by key.
-func GetEnv(key string) (value string, ok bool) {
-	var err error
-	once.Do(func() {
-		envData, err = godotenv.Read("../.env")
-		if err != nil {
-			log.Fatalf("error reading env file: %v", err)
-		}
-	})
-
-	value, ok = envData[key]
-	return
-}
-
-var pgaddr = flag.String("database", "", "database address")
+var pgaddr = flag.String("dsn", "", "database address")
 
 // Ensure the test database can open & close.
 func TestConn(t *testing.T) {
@@ -45,10 +24,10 @@ type testFunc func(t testing.TB, conn *postgres.Conn)
 // WithSchema create a new schema runs given test argument on it.
 func WithSchema(tb testing.TB, test testFunc) {
 	if *pgaddr == "" {
-		if url, ok := GetEnv("DB_URL"); ok != false {
+		if url, ok := todev.GetFromEnv("../.env", "DB_URL"); ok != false {
 			*pgaddr = url
 		} else {
-			tb.Skip("-database flag is nog defined; skipping test")
+			tb.Skip("-dsn flag is not defined; skipping test")
 		}
 	}
 
