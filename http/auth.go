@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"strconv"
@@ -16,13 +17,21 @@ import (
 
 // registerAuthRoutes is a helper function to register auth routes to the router.
 func (s *Server) registerAuthRoutes(r *mux.Router) {
+	r.HandleFunc("/login", s.handleLogin).Methods("GET")
 	r.HandleFunc("/logout", s.handleLogout).Methods("DELETE")
 	r.HandleFunc("/oauth/github", s.handleOAuthGitHub).Methods("GET")
 	r.HandleFunc("/oauth/github/callback", s.handleOAuthGitHubCallback).Methods("GET")
 }
 
-// TODO: implement handleLogin
+// handleLogin handles the "GET /login" route.
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/login.html"); err != nil {
+		LogError(r, fmt.Errorf("error parsing html file: %v", err))
+		return
+	} else if err = tmpl.Execute(w, nil); err != nil {
+		LogError(r, fmt.Errorf("error executing template: %v", err))
+		return
+	}
 }
 
 // handleLogout handles the "DELETE /logout" route. It clears the session cookie
