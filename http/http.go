@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/saiddis/todev"
+	"github.com/saiddis/todev/http/html"
 )
 
 var (
@@ -84,6 +86,18 @@ func Error(w http.ResponseWriter, r *http.Request, err error) {
 		json.NewEncoder(w).Encode(&ErrorResponse{Error: message})
 	default:
 		w.WriteHeader(ErrorStatusCode(code))
+		tmplData := html.Errortemplate{
+			StatusCode: ErrorStatusCode(code),
+			Header:     "An error has occured.",
+			Message:    message,
+		}
+		if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/error.html"); err != nil {
+			LogError(r, fmt.Errorf("error parsing html file: %v", err))
+			return
+		} else if err = tmpl.Execute(w, tmplData); err != nil {
+			LogError(r, fmt.Errorf("error executing template: %v", err))
+			return
+		}
 	}
 }
 
