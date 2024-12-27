@@ -89,14 +89,12 @@ type Main struct {
 }
 
 func NewMain() *Main {
-	dsn, ok := todev.GetFromEnv(todev.DefaultEnvFilePath, "DB_URL")
+	dsn, ok := todev.GetFromEnv("../../.env", "DB_URL")
 	if !ok {
 		log.Fatalf("failed to find config value for: %s", dsn)
 	}
-	return &Main{
-		Config:     DefaultConfig(),
-		ConfigPath: DefaultConfigPath,
 
+	return &Main{
 		DB:         postgres.New(dsn),
 		HTTPServer: http.NewServer(),
 	}
@@ -247,11 +245,15 @@ func DefaultConfig() Config {
 
 // ReadConfigFile unmarshals configs from a config file.
 func ReadConfigFile(filename string) (Config, error) {
-	config := DefaultConfig()
+	var config Config
 	viper.SetConfigFile(filename)
-	if err := viper.Unmarshal(&config); err != nil {
+
+	if err := viper.ReadInConfig(); err != nil {
+		return config, err
+	} else if err = viper.Unmarshal(&config); err != nil {
 		return config, err
 	}
+
 	return config, nil
 }
 
