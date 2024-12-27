@@ -1,13 +1,13 @@
 package http
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/saiddis/todev"
+	"github.com/saiddis/todev/http/json"
 )
 
 // registerTaskRoutes is a helper function for registering task routes.
@@ -30,10 +30,15 @@ func (s *Server) registerTaskRoutes(r *mux.Router) {
 // tasks for the current user.
 func (s *Server) handleTasksFind(w http.ResponseWriter, r *http.Request) {
 	var filter todev.TaskFilter
-	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
+	if err := json.Decode(r.Body, &filter); err != nil {
 		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid JSON body"))
 		return
 	}
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			LogError(r, fmt.Errorf("error closing request body: %v", err))
+		}
+	}()
 	userID := todev.UserIDFromContext(r.Context())
 	filter = todev.TaskFilter{UserID: &userID}
 
@@ -45,10 +50,7 @@ func (s *Server) handleTasksFind(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Header.Get("Accept") {
 	case "application/json":
-		if err = todev.JSON(w, http.StatusOK, todev.FindTasksResponse{
-			Tasks: tasks,
-			N:     n,
-		}); err != nil {
+		if err = json.Encode(json.FindTasksResponse{Tasks: tasks, N: n}, w); err != nil {
 			LogError(r, fmt.Errorf("error writing response: %v", err))
 			return
 		}
@@ -60,10 +62,15 @@ func (s *Server) handleTaskCreate(w http.ResponseWriter, r *http.Request) {
 	var task todev.Task
 	switch r.Header.Get("Content-type") {
 	case "application/json":
-		if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
+		if err := json.Decode(r.Body, &task); err != nil {
 			Error(w, r, todev.Errorf(todev.EINVALID, "Invalid JSON body"))
 			return
 		}
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				LogError(r, fmt.Errorf("error closing request body: %v", err))
+			}
+		}()
 	default:
 		task.Description = r.PostFormValue("description")
 		if contributorID := r.PostFormValue("contributorID"); contributorID != "" {
@@ -81,7 +88,7 @@ func (s *Server) handleTaskCreate(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Header.Get("Accept") {
 	case "application/json":
-		if err = todev.JSON(w, http.StatusCreated, task); err != nil {
+		if err = json.Write(w, http.StatusCreated, task); err != nil {
 			LogError(r, err)
 			return
 		}
@@ -100,11 +107,15 @@ func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 	r.Header.Set("Accept", "application/json")
 
 	var upd todev.TaskUpdate
-	if err = json.NewDecoder(r.Body).Decode(&upd); err != nil {
+	if err = json.Decode(r.Body, &upd); err != nil {
 		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid JSON body"))
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			LogError(r, fmt.Errorf("error closing request body: %v", err))
+		}
+	}()
 
 	// description := r.PostFormValue("description")
 	// upd.Description = &description
@@ -123,7 +134,7 @@ func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 	if task, err := s.TaskService.UpdateTask(r.Context(), id, upd); err != nil {
 		Error(w, r, fmt.Errorf("error updating task: %v", err))
 		return
-	} else if err = todev.JSON(w, http.StatusOK, task); err != nil {
+	} else if err = json.Write(w, http.StatusOK, task); err != nil {
 		Error(w, r, fmt.Errorf("error writing response: %v", err))
 		return
 	}
@@ -143,7 +154,7 @@ func (s *Server) handleTaskDelete(w http.ResponseWriter, r *http.Request) {
 	} else if err = s.TaskService.DeleteTask(r.Context(), id); err != nil {
 		Error(w, r, fmt.Errorf("error deleting task by ID: %v", err))
 		return
-	} else if err = todev.JSON(w, http.StatusOK, task); err != nil {
+	} else if err = json.Write(w, http.StatusOK, task); err != nil {
 		Error(w, r, fmt.Errorf("error writing response: %v", err))
 		return
 	}

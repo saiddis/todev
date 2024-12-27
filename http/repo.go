@@ -3,14 +3,16 @@ package http
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/saiddis/todev"
+	"github.com/saiddis/todev/http/html"
+	"github.com/saiddis/todev/http/json"
 )
 
 // registerRepoRoutes is a helper function for registering repo routes.
@@ -43,13 +45,17 @@ func (s *Server) handleRepoIndex(w http.ResponseWriter, r *http.Request) {
 	var filter todev.RepoFilter
 	switch r.Header.Get("Content-type") {
 	case "application/json":
-		if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
+		if err := json.Decode(r.Body, &filter); err != nil {
 			Error(w, r, todev.Errorf(todev.EINVALID, "Invalid JSON body"))
 			return
 		}
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				LogError(r, fmt.Errorf("error closing request body: %v", err))
+			}
+		}()
 	default:
-		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-		filter.Offset = offset
+		filter.Offset, _ = strconv.Atoi(r.URL.Query().Get("offset"))
 		filter.Limit = 20
 	}
 
@@ -61,11 +67,18 @@ func (s *Server) handleRepoIndex(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Header.Get("Accept") {
 	case "application/json":
-		if err = todev.JSON(w, http.StatusOK, todev.FindReposResponse{
-			Repos: repos,
-			N:     n,
-		}); err != nil {
+		w.Header().Set("Content-type", "application/json")
+		if err = json.Encode(json.FindReposResponse{Repos: repos, N: n}, w); err != nil {
 			LogError(r, err)
+			return
+		}
+	default:
+		tmplData := html.RepoIndexTemplate{Repos: repos, N: n, Filter: filter, URL: *r.URL}
+		if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/repoIndex.html"); err != nil {
+			LogError(r, fmt.Errorf("error parsing html file: %v", err))
+			return
+		} else if err = tmpl.Execute(w, tmplData); err != nil {
+			LogError(r, fmt.Errorf("error executing template: %v", err))
 			return
 		}
 	}
@@ -88,7 +101,7 @@ func (s *Server) handleRepoView(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Header.Get("Accept") {
 	case "application/json":
-		if err = todev.JSON(w, http.StatusFound, repo); err != nil {
+		if err = json.Write(w, http.StatusFound, repo); err != nil {
 			LogError(r, err)
 			return
 		}
@@ -100,10 +113,15 @@ func (s *Server) handleRepoCreate(w http.ResponseWriter, r *http.Request) {
 	var repo todev.Repo
 	switch r.Header.Get("Content-type") {
 	case "application/json":
-		if err := json.NewDecoder(r.Body).Decode(&repo); err != nil {
+		if err := json.Decode(r.Body, &repo); err != nil {
 			Error(w, r, todev.Errorf(todev.EINVALID, "Invalid JSON body"))
 			return
 		}
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				LogError(r, fmt.Errorf("error closing response body: %v", err))
+			}
+		}()
 	default:
 		repo.Name = r.PostFormValue("name")
 	}
@@ -116,7 +134,7 @@ func (s *Server) handleRepoCreate(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Header.Get("Accept") {
 	case "application/json":
-		if err := todev.JSON(w, http.StatusCreated, repo); err != nil {
+		if err := json.Write(w, http.StatusCreated, repo); err != nil {
 			LogError(r, err)
 			return
 		}
@@ -180,7 +198,7 @@ func (s *Server) handleRepoDelete(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Header.Get("Accept") {
 	case "application/json":
-		todev.JSON(w, http.StatusOK, []byte("{}"))
+		json.Write(w, http.StatusOK, []byte("{}"))
 	default:
 		SetFlash(w, "Repo successfully  deleted.")
 		http.Redirect(w, r, "/repos", http.StatusFound)
@@ -216,9 +234,14 @@ func (s *RepoService) FindRepoByID(ctx context.Context, id int) (*todev.Repo, er
 	defer resp.Body.Close()
 
 	var repo todev.Repo
-	if err = json.NewDecoder(resp.Body).Decode(&repo); err != nil {
+	if err = json.Decode(resp.Body, &repo); err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err := req.Body.Close(); err != nil {
+			LogError(req, fmt.Errorf("error closing request body: %v", err))
+		}
+	}()
 
 	return &repo, nil
 }
@@ -227,14 +250,13 @@ func (s *RepoService) FindRepoByID(ctx context.Context, id int) (*todev.Repo, er
 // that the user ownes or is a member of. Also returns a count of total matching
 // repos.
 func (s *RepoService) FindRepos(ctx context.Context, filter todev.RepoFilter) ([]*todev.Repo, int, error) {
-	// Marshal filter into JSON format.
-	body, err := json.Marshal(filter)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error marshalling: %v", err)
+	buf := bytes.NewBuffer(make([]byte, 0))
+	if err := json.Encode(filter, buf); err != nil {
+		return nil, 0, fmt.Errorf("error creating request: %v", err)
 	}
 
 	// Create request with API key.
-	req, err := s.Client.newRequest(ctx, "GET", "/repos", bytes.NewReader(body))
+	req, err := s.Client.newRequest(ctx, "GET", "/repos", buf)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error creating request: %v", err)
 	}
@@ -246,26 +268,30 @@ func (s *RepoService) FindRepos(ctx context.Context, filter todev.RepoFilter) ([
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, 0, fmt.Errorf("error status code: %d", resp.StatusCode)
 	}
-	defer resp.Body.Close()
 
 	// Unmarshal result set of repos and total repo count.
-	var jsonResponse todev.FindReposResponse
-	if err = json.NewDecoder(resp.Body).Decode(&jsonResponse); err != nil {
+	var jsonResponse json.FindReposResponse
+	if err = json.Decode(resp.Body, &jsonResponse); err != nil {
 		return nil, 0, fmt.Errorf("error decoding reponse: %v", err)
 	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			LogError(req, fmt.Errorf("error closing response body: %v", err))
+		}
+	}()
 	return jsonResponse.Repos, jsonResponse.N, nil
 }
 
 // CreateRepo creates a new repo and assigns the current user as the owner.
 // The owner will automatically be added as a member of the new repo.
 func (s *RepoService) CreateRepo(ctx context.Context, repo *todev.Repo) error {
-	body, err := json.Marshal(repo)
-	if err != nil {
-		return err
+	buf := bytes.NewBuffer(make([]byte, 0))
+	if err := json.Encode(repo, buf); err != nil {
+		return fmt.Errorf("error creating request: %v", err)
 	}
 
 	// Create request with API key.
-	req, err := s.Client.newRequest(ctx, "POST", "/repos", bytes.NewReader(body))
+	req, err := s.Client.newRequest(ctx, "POST", "/repos", buf)
 	if err != nil {
 		return err
 	}
@@ -280,9 +306,14 @@ func (s *RepoService) CreateRepo(ctx context.Context, repo *todev.Repo) error {
 	}
 	defer resp.Body.Close()
 
-	if err = json.NewDecoder(req.Body).Decode(&repo); err != nil {
+	if err = json.Decode(req.Body, &repo); err != nil {
 		return err
 	}
+	defer func() {
+		if err := req.Body.Close(); err != nil {
+			LogError(req, fmt.Errorf("error closing request body: %v", err))
+		}
+	}()
 	return nil
 }
 

@@ -1,13 +1,13 @@
 package http
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/saiddis/todev"
+	"github.com/saiddis/todev/http/json"
 )
 
 // registerContributorRoutes is a helper function for registering contirbutor
@@ -92,16 +92,20 @@ func (s *Server) handleContritbutorUpdate(w http.ResponseWriter, r *http.Request
 	r.Header.Set("Accept", "application/json")
 
 	var upd todev.ContributorUpdate
-	if err = json.NewDecoder(r.Body).Decode(&upd); err != nil {
+	if err = json.Decode(r.Body, &upd); err != nil {
 		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid JSON body."))
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			LogError(r, fmt.Errorf("error closing request body: %v", err))
+		}
+	}()
 
 	if contritbutor, err := s.ContributorService.UpdateContributor(r.Context(), id, upd); err != nil {
 		Error(w, r, fmt.Errorf("error updating contritbutor: %v", err))
 		return
-	} else if err = todev.JSON(w, http.StatusOK, contritbutor); err != nil {
+	} else if err = json.Write(w, http.StatusOK, contritbutor); err != nil {
 		Error(w, r, fmt.Errorf("error writing response: %v", err))
 		return
 	}

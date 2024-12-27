@@ -2,8 +2,10 @@ package http
 
 import (
 	"context"
+	"embed"
 	"encoding/hex"
 	"fmt"
+	"html/template"
 	"log"
 	"net"
 	"net/http"
@@ -12,16 +14,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/benbjohnson/hashfs"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/saiddis/todev"
+	"github.com/saiddis/todev/http/assets"
+	"github.com/saiddis/todev/http/html"
+	"github.com/saiddis/todev/http/json"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 )
+
+//go:embed html/*.html
+var templateFiles embed.FS
 
 // Generic HTTP metrics.
 var (
@@ -87,9 +96,11 @@ func NewServer() *Server {
 	// Setup error handling routes.
 	s.router.NotFoundHandler = http.HandlerFunc(s.handleNotFound)
 
+	s.router.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", hashfs.FileServer(assets.FS)))
+
 	// Setup endpoint to display deployed version.
 	s.router.HandleFunc("/debug/version", s.handleVersion).Methods("GET")
-	s.router.HandleFunc("/debug/commint", s.handleCommit).Methods("GET")
+	s.router.HandleFunc("/debug/commit", s.handleCommit).Methods("GET")
 
 	// Setup a base router that excludes asset handling.
 	router := s.router.PathPrefix("/").Subrouter()
@@ -372,14 +383,15 @@ func reportPanic(next http.Handler) http.Handler {
 }
 
 func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
-	resp := todev.ErrorResponse{
+	resp := json.ErrorResponse{
 		Header:  "Your page cannot be found.",
 		Message: "Sorry, it looks like we can't find what you're looking for.",
 	}
 
-	todev.JSON(w, http.StatusNotFound, resp)
+	json.Write(w, http.StatusNotFound, resp)
 }
 
+// handleIndex handles the "GET /" route.
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if todev.UserIDFromContext(r.Context()) == 0 {
 		http.Redirect(w, r, "/login", http.StatusNotFound)
@@ -387,16 +399,17 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	var resp todev.IndexResponse
+	var tmplData html.IndexTemplate
 
-	if resp.Repos, _, err = s.RepoService.FindRepos(r.Context(), todev.RepoFilter{}); err != nil {
+	if tmplData.Repos, _, err = s.RepoService.FindRepos(r.Context(), todev.RepoFilter{}); err != nil {
 		Error(w, r, err)
 		return
-	} else if len(resp.Repos) == 0 {
+	} else if len(tmplData.Repos) == 0 {
 		http.Redirect(w, r, "/repos", http.StatusFound)
+		return
 	}
 
-	if resp.Contributors, _, err = s.ContributorService.FindContributors(r.Context(), todev.ContributorFilter{
+	if tmplData.Contributors, _, err = s.ContributorService.FindContributors(r.Context(), todev.ContributorFilter{
 		Limit:  20,
 		SortBy: "updated_at_desc",
 	}); err != nil {
@@ -404,8 +417,11 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = todev.JSON(w, http.StatusOK, resp); err != nil {
-		Error(w, r, err)
+	if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/index.html"); err != nil {
+		LogError(r, fmt.Errorf("error parsing html file: %v", err))
+		return
+	} else if err = tmpl.Execute(w, tmplData); err != nil {
+		LogError(r, fmt.Errorf("error executing template: %v", err))
 		return
 	}
 }
