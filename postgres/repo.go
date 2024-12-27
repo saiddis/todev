@@ -31,7 +31,7 @@ func (s *RepoService) CreateRepo(ctx context.Context, repo *todev.Repo) error {
 	}
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("FindAuths: %w", err)
+			err = fmt.Errorf("CreateRepo: %w", err)
 			if err := tx.Rollback(); err != nil {
 				log.Printf("failed to rollback: %v", err)
 			}

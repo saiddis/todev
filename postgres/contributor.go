@@ -457,11 +457,11 @@ func attachContributorAssociations(ctx context.Context, tx *Tx, contributor *tod
 	if err != nil {
 		return fmt.Errorf("error retrieving repo by ID: %w", err)
 	}
-	user, err := findUserByID(ctx, tx, contributor.UserID)
+	contributor.User, err = findUserByID(ctx, tx, contributor.UserID)
 	if err != nil {
 		return fmt.Errorf("error attaching contributor user: %w", err)
 	}
 	contributor.OwnerID = repo.UserID
-	contributor.UserID = user.ID
+	contributor.UserID = contributor.User.ID
 	return nil
 }
