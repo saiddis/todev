@@ -10,6 +10,9 @@ type Contributor struct {
 	// Tasks that are visible and/or due to the current contributor.
 	Tasks []*Task
 
+	// Associated user.
+	User *User `json:"user"`
+
 	// Timestamps for contributor creation and last update.
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
