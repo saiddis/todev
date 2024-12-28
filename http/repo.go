@@ -24,12 +24,14 @@ func (s *Server) registerRepoRoutes(r *mux.Router) {
 	r.HandleFunc("/repos", s.handleRepoCreate).Methods("POST")
 
 	// HTML form for creating repos.
+	r.HandleFunc("/repos/new", s.handleRepoNew).Methods("GET")
 	r.HandleFunc("/repos/new", s.handleRepoCreate).Methods("POST")
 
 	// View a single repo.
 	r.HandleFunc("/repos/{id}", s.handleRepoView).Methods("GET")
 
 	// HTML form for updating an existing repo.
+	r.HandleFunc("repo/{id}/edit", s.handleRepoEdit).Methods("GET")
 	r.HandleFunc("repo/{id}/edit", s.handleRepoUpdate).Methods("PATCH")
 
 	// Removing a repo.
@@ -84,6 +86,21 @@ func (s *Server) handleRepoIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleRepoNew handles the "GET /repos/new" route.
+// It renders a new HTML form for editing a new repo.
+func (s *Server) handleRepoNew(w http.ResponseWriter, r *http.Request) {
+	tmplData := html.RepoEditTemplate{Repo: &todev.Repo{}}
+
+	if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/repoEdit.html"); err != nil {
+		LogError(r, fmt.Errorf("error parsing html file: %v", err))
+		return
+	} else if err = tmpl.Execute(w, tmplData); err != nil {
+		LogError(r, fmt.Errorf("error executing template: %v", err))
+		return
+	}
+
+}
+
 // handleRepoView handles the "GET /repos/:id" route.
 func (s *Server) handleRepoView(w http.ResponseWriter, r *http.Request) {
 	// Parse ID from path.
@@ -95,14 +112,33 @@ func (s *Server) handleRepoView(w http.ResponseWriter, r *http.Request) {
 
 	repo, err := s.RepoService.FindRepoByID(r.Context(), id)
 	if err != nil {
-		Error(w, r, err)
+		Error(w, r, fmt.Errorf("error retrieving repo by ID: %v", err))
+		return
+	} else if repo.Contributors, _, err = s.ContributorService.FindContributors(r.Context(), todev.ContributorFilter{RepoID: &repo.ID}); err != nil {
+		Error(w, r, fmt.Errorf("error retrieving repo contributors: %v", err))
+		return
+	} else if repo.Tasks, _, err = s.TaskService.FindTasks(r.Context(), todev.TaskFilter{RepoID: &repo.ID}); err != nil {
+		Error(w, r, fmt.Errorf("error retrieving repo tasks: %v", err))
 		return
 	}
 
 	switch r.Header.Get("Accept") {
 	case "application/json":
-		if err = json.Write(w, http.StatusFound, repo); err != nil {
+		if err = json.Encode(repo, w); err != nil {
 			LogError(r, err)
+			return
+		}
+	default:
+		tmplData := html.RepoViewTemplate{
+			Repo:       repo,
+			InviteCode: fmt.Sprintf("%s/invite/%s", s.URL(), repo.InviteCode),
+		}
+
+		if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/repoView.html"); err != nil {
+			LogError(r, fmt.Errorf("error parsing html file: %v", err))
+			return
+		} else if err = tmpl.Execute(w, tmplData); err != nil {
+			LogError(r, fmt.Errorf("error executing template: %v", err))
 			return
 		}
 	}
@@ -127,33 +163,69 @@ func (s *Server) handleRepoCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := s.RepoService.CreateRepo(r.Context(), &repo)
-	if err != nil {
-		Error(w, r, fmt.Errorf("error creating repo: %v", err))
-		return
-	}
 
 	switch r.Header.Get("Accept") {
 	case "application/json":
-		if err := json.Write(w, http.StatusCreated, repo); err != nil {
+		if err != nil {
+			Error(w, r, fmt.Errorf("error creating repo: %v", err))
+			return
+		}
+
+		w.Header().Set("Content-type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		if err = json.Encode(repo, w); err != nil {
 			LogError(r, err)
 			return
 		}
-	}
-}
+	default:
+		if todev.ErrorCode(err) == todev.EINTERNAL {
+			Error(w, r, err)
+			return
+		} else if err != nil {
+			tmplData := html.RepoEditTemplate{Repo: &repo, Err: fmt.Errorf("error creating repo: %v", err)}
 
-// TODO: implement repo edit route with HTML.
+			if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/repoEdit.html"); err != nil {
+				LogError(r, fmt.Errorf("error parsing html file: %v", err))
+				return
+			} else if err = tmpl.Execute(w, tmplData); err != nil {
+				LogError(r, fmt.Errorf("error executing template: %v", err))
+				return
+			}
+		}
+
+		SetFlash(w, "Repo successfully created.")
+		http.Redirect(w, r, fmt.Sprintf("/repos/%d", repo.ID), http.StatusFound)
+	}
+
+}
 
 // handleRepoEdit handles the "GET /repos/:id/edit" route. This route fetches
 // the underlying repo and renders it an HTML form.
-// func (s *Server) handleRepoEdit(w http.ResponseWriter, r *http.Request) {
-// 	// Parse repo ID from the path.
-// 	id, err := strconv.Atoi(mux.Vars(r)["id"])
-// 	if err != nil {
-// 		Error(w, r, todev.Errorf(todev.EINTERNAL, "Invalid ID format"))
-// 		return
-// 	}
-//
-// }
+func (s *Server) handleRepoEdit(w http.ResponseWriter, r *http.Request) {
+	// Parse repo ID from the path.
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		Error(w, r, todev.Errorf(todev.EINTERNAL, "Invalid ID format"))
+		return
+	}
+
+	repo, err := s.RepoService.FindRepoByID(r.Context(), id)
+	if err != nil {
+		Error(w, r, fmt.Errorf("error retrieving repo by ID: %v", err))
+		return
+	}
+
+	tmplData := html.RepoEditTemplate{Repo: repo}
+
+	if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/repoEdit.html"); err != nil {
+		LogError(r, fmt.Errorf("error parsing html file: %v", err))
+		return
+	} else if err = tmpl.Execute(w, tmplData); err != nil {
+		LogError(r, fmt.Errorf("error executing template: %v", err))
+		return
+	}
+
+}
 
 // handleRepoUpdate handles the "PATCH /repos/:id/edit" route. This route reads
 // the udpated fields and issues an updat in the database. On success, it redirects
@@ -171,9 +243,19 @@ func (s *Server) handleRepoUpdate(w http.ResponseWriter, r *http.Request) {
 	upd.Name = &name
 
 	repo, err := s.RepoService.UpdateRepo(r.Context(), id, upd)
-	if err != nil {
+	if todev.ErrorCode(err) == todev.EINTERNAL {
 		Error(w, r, err)
 		return
+	} else if err != nil {
+		tmplData := html.RepoEditTemplate{Repo: repo}
+
+		if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/repoEdit.html"); err != nil {
+			LogError(r, fmt.Errorf("error parsing html file: %v", err))
+			return
+		} else if err = tmpl.Execute(w, tmplData); err != nil {
+			LogError(r, fmt.Errorf("error executing template: %v", err))
+			return
+		}
 	}
 
 	SetFlash(w, "Repo successfully updated.")
@@ -203,7 +285,6 @@ func (s *Server) handleRepoDelete(w http.ResponseWriter, r *http.Request) {
 		SetFlash(w, "Repo successfully  deleted.")
 		http.Redirect(w, r, "/repos", http.StatusFound)
 	}
-
 }
 
 // RepoService implements the todev.RepoService over the HTTP protocol.
