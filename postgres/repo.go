@@ -485,11 +485,11 @@ func attachRepoAssociations(ctx context.Context, tx *Tx, repo *todev.Repo) (err 
 	}
 	repo.UserID = user.ID
 
-	if repo.Contributors, _, err = findContributors(ctx, tx, todev.ContributorFilter{RepoID: &repo.ID}); err != nil {
-		return fmt.Errorf("error attaching repo contributors: %w", err)
-	} else if repo.Tasks, _, err = findTasks(ctx, tx, todev.TaskFilter{RepoID: &repo.ID}); err != nil {
-		return fmt.Errorf("error attaching repo tasks: %w", err)
-	}
+	// if repo.Contributors, _, err = findContributors(ctx, tx, todev.ContributorFilter{RepoID: &repo.ID}); err != nil {
+	// 	return fmt.Errorf("error attaching repo contributors: %w", err)
+	// } else if repo.Tasks, _, err = findTasks(ctx, tx, todev.TaskFilter{RepoID: &repo.ID}); err != nil {
+	// 	return fmt.Errorf("error attaching repo tasks: %w", err)
+	// }
 
 	// if sub, ok := tx.conn.EventService.GetSubscribtion(repo.ID); ok {
 	// 	repo.Subscription = sub
