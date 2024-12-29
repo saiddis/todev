@@ -4,6 +4,7 @@ package assets
 
 import "embed"
 
+//go:embed scripts/*.js
 //go:embed css/theme.css
 var fsys embed.FS
 
