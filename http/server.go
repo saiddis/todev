@@ -283,6 +283,14 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 			if user, err := s.UserService.FindUserByID(r.Context(), session.UserID); err != nil {
 				log.Printf("error retrieving session user; id=%d err=%s", session.UserID, err)
 			} else {
+				http.SetCookie(w, &http.Cookie{
+					Name:     "avatar",
+					Value:    session.AvatarURL,
+					Path:     "/",
+					Secure:   s.UseTLS(),
+					HttpOnly: false,
+				})
+
 				r = r.WithContext(todev.NewContextWithUser(r.Context(), user))
 			}
 		}
@@ -402,7 +410,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	var tmplData html.IndexTemplate
 
 	if tmplData.Repos, _, err = s.RepoService.FindRepos(r.Context(), todev.RepoFilter{}); err != nil {
-		Error(w, r, err)
+		Error(w, r, fmt.Errorf("error retrieving user repos: %v", err))
 		return
 	} else if len(tmplData.Repos) == 0 {
 		http.Redirect(w, r, "/repos", http.StatusFound)
@@ -453,7 +461,7 @@ func (s *Server) session(r *http.Request) (Session, error) {
 	return session, nil
 }
 
-// setSession cretes a secure cookie with session data.
+// setSession creates a secure cookie with session data.
 func (s *Server) setSession(w http.ResponseWriter, session Session) error {
 	buf, err := s.MarshalSession(session)
 	if err != nil {

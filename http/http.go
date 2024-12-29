@@ -57,6 +57,7 @@ type Session struct {
 	UserID      int    `json:"userID"`
 	RedirectURL string `json:"redirectURL"`
 	State       string `json:"state"`
+	AvatarURL   string `json:"avatarURL"`
 }
 
 // SetFlash sets the flash cookie for the next request to read.
