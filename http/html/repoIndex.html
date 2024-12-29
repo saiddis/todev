@@ -1,0 +1,56 @@
+{{define "title"}}Repos{{end}}
+
+{{define "scripts"}}
+<script src="https://cdn.jsdelivr.net/npm/htmx.org"></script>
+{{end}}
+
+{{define "body"}}
+<main>
+	<div class="content">
+		<button class="button-key">Create repo</button>
+	</div>
+	{{if gt (len .Repos) 0}}
+	<div class="content col center">
+		<table>
+			<thead>
+				<tr>
+					<th>
+						Name
+					</th>
+
+					<th>
+						Created by
+					</th>
+
+					<th>
+						Last Updated
+					</th>
+				</tr>
+			</thead>
+
+
+			<tbody>
+				{{range $repo := .Repos}}
+				<tr>
+					<th>
+						<a href="/dials/{{$repo.ID}}">
+							{{$repo.Name}}
+						</a>
+					</th>
+
+					<td>
+						{{index .repo.Contributors.User.Name 0}}
+					</td>
+
+					<td>
+						{{$repo.UpdatedAt}}
+					</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{end}}
+</main>
+
+{{end}}
