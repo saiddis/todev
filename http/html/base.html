@@ -10,24 +10,28 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap"
 		rel="stylesheet">
-	rel="stylesheet">
 	{{template "scripts"}}
 </head>
 
 <body>
 	<nav>
-		<a href="/">
-			<span>
-				todev
-			</span>
-		</a>
-
-		<div class="profile">Profile</div>
+		<a class="logo" href="/"><span>todev</span></a>
+		<div class="profile">
+			<img class="avatar" src="" aria-placeholder="Avatar" />
+		</div>
 	</nav>
+
 	{{ template "body" .}}
 
 	<footer>
+		<div class="made-with-love">
+			Made with
+			<i>♥</i> by
+			<a href="https://github.com/saiddis">said</a>
+		</div>
 	</footer>
+	<script src="../assets/scripts/main.js">
+	</script>
 </body>
 
 </html>
