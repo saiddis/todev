@@ -8,7 +8,8 @@ import (
 
 // Authentication providers.
 const (
-	AuthSourceGitHub = "github"
+	AuthSourceGitHub  = "github"
+	DefaultAvatarSize = 128
 )
 
 // Auth represents a set of OAuth creadentials.
