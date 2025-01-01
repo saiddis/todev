@@ -1,6 +1,9 @@
 const nav = document.querySelector("nav")
+const footer = document.querySelector("footer")
 const main = document.querySelector("main")
 main.style.top = nav.clientHeight + "px"
+footer.style.top = nav.clientHeight + main.clientHeight + "px"
+
 document.body.style.height = document.documentElement.clientHeight + nav.clientHeight + "px"
 
 document.addEventListener("DOMContentLoaded", () => {
