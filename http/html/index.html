@@ -10,9 +10,8 @@
 	<ul>
 		{{range $repo := .Repos}}
 		<li>
-			<div class="content item between-h">
+			<div class="content item between-h" hx-get="/repos/{{$repo.ID}}" hx-target="body">
 				<h3>{{$repo.Name}}</h3>
-
 				<h3>{{$repo.UpdatedAt}}</h3>
 			</div>
 		</li>
