@@ -44,7 +44,7 @@ html {
 }
 
 body {
-	font-size: 12px;
+	font-size: 14px;
 	background-color: var(--white);
 	color: var(--russian-violet);
 	height: 100%;
@@ -90,10 +90,13 @@ button {
 	font: var(--font-bold);
 }
 
-.content {
+.flex {
 	position: relative;
 	display: flex;
-	width: 90%;
+	/*width: 90%;*/
+}
+
+.gap {
 	gap: 1rem;
 }
 
@@ -117,11 +120,11 @@ button {
 	align-items: center;
 }
 
-.center-v {
+.center-h {
 	align-items: center;
 }
 
-.center-h {
+.center-v {
 	justify-content: center;
 }
 
@@ -146,6 +149,21 @@ form input {
 	width: 20%;
 }
 
+#tasks-pane,
+#contribs-pane {
+	border: solid 1px var(--select-border);
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: 0.2fr 1fr;
+	grid-column-gap: 0px;
+	grid-row-gap: 0px;
+}
+
+.grid.row-1 {
+	grid-template-rows: 1fr;
+}
 
 .login {
 	display: flex;
@@ -175,6 +193,11 @@ form input {
 	width: 3rem;
 	height: 3rem;
 	border-radius: 50%;
+}
+
+.avatar.small {
+	width: 2rem;
+	height: 2rem;
 }
 
 select {
