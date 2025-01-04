@@ -34,9 +34,9 @@ func (u User) Validate() error {
 }
 
 // AvatarURL retruns a URL to the avatar image for the user.
-func (u User) AvatarURL(size int) string {
+func (u User) AvatarURL() string {
 	for _, auth := range u.Auths {
-		if s := auth.AvatarURL(size); s != "" {
+		if s := auth.AvatarURL(); s != "" {
 			return s
 		}
 	}

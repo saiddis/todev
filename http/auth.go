@@ -158,7 +158,7 @@ func (s *Server) handleOAuthGitHubCallback(w http.ResponseWriter, r *http.Reques
 	session.UserID = auth.UserID
 	session.RedirectURL = ""
 	session.State = ""
-	session.AvatarURL = auth.AvatarURL(todev.DefaultAvatarSize)
+	session.AvatarURL = auth.AvatarURL()
 	if err = s.setSession(w, session); err != nil {
 		Error(w, r, fmt.Errorf("error setting session cookie: %v", err))
 		return

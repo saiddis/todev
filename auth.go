@@ -49,10 +49,10 @@ func (a *Auth) Validate() error {
 	return nil
 }
 
-func (a *Auth) AvatarURL(size int) string {
+func (a *Auth) AvatarURL() string {
 	switch a.Source {
 	case AuthSourceGitHub:
-		return fmt.Sprintf("https://avatars1.githubusercontent.com/u/%s?s=%d", a.SourceID, size)
+		return fmt.Sprintf("https://avatars1.githubusercontent.com/u/%s?s=%d", a.SourceID, DefaultAvatarSize)
 	default:
 		return ""
 	}
