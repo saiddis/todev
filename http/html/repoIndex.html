@@ -1,25 +1,15 @@
 {{define "title"}}Repos{{end}}
-
-{{define "scripts"}}
-<script src="https://cdn.jsdelivr.net/npm/htmx.org"></script>
-{{end}}
+{{define "scripts"}}{{end}}
 
 {{define "body"}}
 <main>
-	<div class="content">
-		<button class="button-key">Create repo</button>
-	</div>
 	{{if gt (len .Repos) 0}}
-	<div class="content col center">
+	<div class="flex col center">
 		<table>
 			<thead>
 				<tr>
 					<th>
 						Name
-					</th>
-
-					<th>
-						Created by
 					</th>
 
 					<th>
@@ -39,10 +29,6 @@
 					</th>
 
 					<td>
-						{{index .repo.Contributors.User.Name 0}}
-					</td>
-
-					<td>
 						{{$repo.UpdatedAt}}
 					</td>
 				</tr>
@@ -50,6 +36,8 @@
 			</tbody>
 		</table>
 	</div>
+	{{else}}
+	<h4>Nothing to see here ...</h4>
 	{{end}}
 </main>
 
