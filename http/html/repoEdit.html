@@ -2,8 +2,8 @@
 {{define "scripts"}}{{end}}
 
 {{define "body"}}
-<main class="center-v">
-	<form method="POST" class="content col center">
+<main class="center-h">
+	<form method="POST" class="flex col center">
 		{{if ne .Repo.ID 0}}
 		<input type=" hidden" name="_method" value="PATCH" />
 		{{end}}
