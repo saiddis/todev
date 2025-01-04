@@ -1,36 +1,37 @@
 {{define "title"}}{{.Repo.Name}}{{end}}
-{{define "scripts"}}{{end}}
 {{define "body"}}
 <main>
-	<div class="content" id="contribs-pane">
-		<ul>
+	<div class="grid row-1">
+		<div class="flex col" id="contribs-pane">
 			{{range $contributor := .Repo.Contributors}}
-			<li>
-				<div class="content">
-					{{if ne .UserID $contributor.User.ID}}
-					{{(index $contributor.User.Auths 0).SourceID}}
-					{{end}}
-				</div>
-			</li>
+			<div class="flex center-h">
+				<img class="avatar small" src="{{$contributor.User.AvatarURL}}"
+					aria-placeholder="Avatar" />
+				<h4>{{$contributor.User.Name}}</h4>
+			</div>
 			{{end}}
-		</ul>
+		</div>
+
+		<div id="tasks-pane">
+			{{if eq .Repo.UserID (index .Repo.Contributors 0).OwnerID}}
+			<button id="add-task-button">
+				Create task
+			</button>
+			{{end}}
+
+			<ul id="tasks-list">
+
+			</ul>
+
+			<ul class="flex" id="completed-tasks-list" hidden>
+				<h5 id="title-completed">Completed</h5>
+			</ul>
+
+		</div>
 	</div>
-
-	<div class="content" id="tasks-pane">
-		<ul id="tasks-list">
-
-		</ul>
-
-		<ul class="content" id="completed-tasks-list" hidden>
-			<h5>Completed</h5>
-
-		</ul>
-
-		<svg class="add-task-button" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-			<path d="M6 12H18M12 6V18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-		</svg>
-	</div>
-
-	<script src="../assets/scripts/viewRepo.js"></script>
 </main>
+{{end}}
+
+{{define "scripts"}}
+<script src="../assets/scripts/repoView.js"></script>
 {{end}}
