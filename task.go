@@ -18,7 +18,7 @@ type Task struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 
 	// Description for the task.
-	Description string `json:"statement"`
+	Description string `json:"description"`
 
 	// ID of a repo in which the task was given.
 	RepoID int `json:"repoID"`
