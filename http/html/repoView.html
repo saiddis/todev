@@ -2,9 +2,11 @@
 {{define "body"}}
 <main>
 	<div class="grid row-1">
-		<div class="flex col" id="contribs-pane">
+		<div class="flex col gap" id="contribs-pane">
+			<button id="invite-link-button" onclick="copyContent('{{.InviteCode}}')">Copy invite
+				link</button>
 			{{range $contributor := .Repo.Contributors}}
-			<div class="flex center-h">
+			<div class="flex center-h gap">
 				<img class="avatar small" src="{{$contributor.User.AvatarURL}}"
 					aria-placeholder="Avatar" />
 				<h4>{{$contributor.User.Name}}</h4>
@@ -13,7 +15,7 @@
 		</div>
 
 		<div id="tasks-pane">
-			{{if eq .Repo.UserID (index .Repo.Contributors 0).OwnerID}}
+			{{if eq .UserID .Repo.UserID}}
 			<button id="add-task-button">
 				Create task
 			</button>
@@ -23,8 +25,9 @@
 
 			</ul>
 
-			<ul class="flex" id="completed-tasks-list" hidden>
-				<h5 id="title-completed">Completed</h5>
+			<ul id="completed-tasks-list" hidden>
+				<hr>
+				<h3 id="title-completed">Completed</h3>
 			</ul>
 
 		</div>
@@ -33,5 +36,190 @@
 {{end}}
 
 {{define "scripts"}}
-<script src="../assets/scripts/repoView.js"></script>
+<script src="../assets/scripts/reconnecting-websocket.js"></script>
+<script>
+	class Task {
+		constructor(wrapper, description) {
+			this.parent = this.getParentElement()
+			this.remove = this.getRemoveElement()
+			this.checkBox = this.getCheckBoxElement()
+			this.checkBoxIcon = this.getCheckBoxIconElement()
+			this.description = this.getDescriptionElement(description)
+
+			this.wrapper = this.getWrapper(wrapper)
+
+			this.checkBox.onchange = (event) => this.onCheckBox(event)
+			this.remove.onclick = (event) => this.onRemove(event)
+		}
+
+		getParentElement() {
+			let label = document.createElement('label')
+			label.classList.add('checkbox', 'flex', 'center-h', 'gap')
+			return label
+		}
+
+		getCheckBoxElement() {
+			let input = document.createElement('input')
+			input.type = 'checkbox'
+			return input
+		}
+
+		getCheckBoxIconElement() {
+			let span = document.createElement('span')
+			span.className = 'checkbox__icon'
+			return span
+		}
+
+		getRemoveElement() {
+			let cross = document.createElement('div')
+			cross.className = 'cross'
+			return cross
+		}
+
+		getDescriptionElement(value) {
+			let input = document.createElement('input')
+			input.className = 'description'
+			input.type = 'text'
+			input.value = value
+			return input
+		}
+
+		getWrapper(wrapper) {
+			this.parent.append(this.remove, this.checkBox, this.checkBoxIcon, this.description)
+			wrapper.append(this.parent)
+			return wrapper
+		}
+
+		onRemove(event) {
+			this.wrapper.remove()
+			if (titleCompleted == completedTasksList.lastElementChild) {
+				completedTasksList.hidden = true
+			}
+		}
+
+		onCheckBox(event) {
+			if (!this.description.value.trim()) { // if its input is empty
+				this.description.focus()
+				return false; // prevent from adding the task to the .completed-task-list
+			} else if (event.target == this.description) {
+				return false
+			}
+
+			if (this.wrapper.parentElement == tasksList) {
+				this.description.style.opacity = '0.4'
+				if (completedTasksList.hidden) {
+					completedTasksList.hidden = false
+				}
+
+				completedTasksList.append(this.wrapper);
+
+			} else {
+				this.description.style.opacity = '1'
+				tasksList.prepend(this.wrapper)
+
+				if (titleCompleted == completedTasksList.lastElementChild) {
+					completedTasksList.hidden = true
+				}
+			}
+		}
+	}
+
+	class UserTask extends Task {
+		getDescriptionElement(value) {
+			let p = document.createElement('p')
+			p.innerHTML = value
+			return p
+		}
+
+		getCheckBoxElement() {
+			let input = document.createElement('input')
+			input.type = 'checkbox'
+			input.onclick = (event) => {
+				event.preventDefault()
+			}
+			return input
+		}
+
+		onCheckBox(event) {
+			event.preventDefault()
+			return false
+		}
+
+		onRemove(event) {
+			event.preventDefault()
+			return false
+		}
+
+		getWrapper(wrapper) {
+			this.parent.append(this.checkBox, this.checkBoxIcon, this.description)
+			wrapper.append(this.parent)
+			return wrapper
+		}
+	}
+
+	const tasksList = document.getElementById('tasks-list')
+	const completedTasksList = document.getElementById('completed-tasks-list')
+	const titleCompleted = document.getElementById('title-completed')
+	const addTaskButton = document.getElementById('add-task-button')
+
+	addTaskButton.onclick = () => {
+		addTask()
+	}
+
+	function addTask() {
+		const li = document.createElement('li')
+		li.classList.add('flex', 'center-h')
+		const input = document.createElement('input')
+		li.append(input)
+		tasksList.append(li)
+
+		input.focus()
+		input.onblur = () => {
+			if (!input.value.trim()) {
+				li.remove()
+				return
+			}
+
+			let description = input.value
+			input.remove()
+			new Task(li, description)
+		}
+	}
+
+	const copyContent = async (text) => {
+		try {
+			await navigator.clipboard.writeText(text);
+			console.log('Content copied to clipboard');
+		} catch (err) {
+			console.error('Failed to copy: ', err);
+		}
+	};
+
+
+	function connect() {
+		//const socket = new ReconnectingWebSocket((location.protocol == 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/events');
+		//socket.addEventListenter('message', function (event) {
+		//	const e = JSON.parse(event.data)
+		//	console.log(e)
+		//
+		//	switch (e.type) {
+		//		case 'task:added':
+		//			const li = document.createElement('li')
+		//			li.classList.add('flex', 'center-h')
+		//
+		//			if ("{{.UserID}}" == "{{.Repo.UserID}}") {
+		//				new Task(li, e.payload.task.description)
+		//			} else {
+		//				new UserTask(li, e.payload.task.description)
+		//			}
+		//	}
+		const socket = new ReconnectingWebSocket((location.protocol == 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/events');
+		socket.addEventListener('message', function (event) {
+			const e = JSON.parse(event.data)
+			console.log(e)
+		});
+	};
+
+	connect()
+</script>
 {{end}}
