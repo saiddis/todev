@@ -18,7 +18,9 @@ var (
 var ReportError = func(ctx context.Context, err error, args ...interface{}) {}
 
 // ReportPanic notifies an external service of panics. No-op by default.
-var ReportPanic = func(err interface{}) {}
+var ReportPanic = func(err interface{}) {
+	log.Printf("panic: %v", err)
+}
 
 var (
 	once    sync.Once
