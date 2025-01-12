@@ -1,16 +1,17 @@
 {{define "title"}}Edit repo{{end}}
-{{define "scripts"}}{{end}}
 
 {{define "body"}}
 <main class="center-h">
-	<form method="POST" class="flex col center">
+	<form method="POST" class="form flex col center">
 		{{if ne .Repo.ID 0}}
-		<input type=" hidden" name="_method" value="PATCH" />
+		<input type="hidden" name="_method" value="PATCH" />
 		{{end}}
 		<label for="name">Repo Name</label>
 		<input type="text" id="name" name="name" value="{{.Repo.Name}}" autofocus maxlength="32" />
 
-		<button type="submit" value="Save">Save</button>
+		<button type="submit">Save</button>
 	</form>
 </main>
 {{end}}
+
+{{define "scripts"}}{{end}}
