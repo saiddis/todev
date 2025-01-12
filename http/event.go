@@ -21,6 +21,7 @@ var (
 
 // registerEventRoutes is a helper function to register event routes.
 func (s *Server) registerEventRoutes(r *mux.Router) {
+	r.HandleFunc("/events", s.handleEvents)
 
 }
 
@@ -77,7 +78,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Write JSON data out to the websocket connection.
-			if err = conn.WriteMessage(websocket.TextMessage, buf); err != nil {
+			if err := conn.WriteMessage(websocket.TextMessage, buf); err != nil {
 				LogError(r, err)
 				return
 			}
