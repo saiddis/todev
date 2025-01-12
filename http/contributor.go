@@ -2,11 +2,13 @@ package http
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/saiddis/todev"
+	"github.com/saiddis/todev/http/html"
 	"github.com/saiddis/todev/http/json"
 )
 
@@ -51,6 +53,15 @@ func (s *Server) handleContirbutorNew(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("/repos/%d", contributors[0].RepoID), http.StatusFound)
 		return
 	}
+
+	tmplData := html.ContributorCreateTemplate{Repo: repos[0]}
+	if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/contributorCreate.html"); err != nil {
+		LogError(r, fmt.Errorf("error parsing html file: %v", err))
+		return
+	} else if err = tmpl.Execute(w, tmplData); err != nil {
+		LogError(r, fmt.Errorf("error executing template: %v", err))
+		return
+	}
 }
 
 // handleContributorCreate handles the "POST /repos/:code" route. This route
@@ -69,6 +80,8 @@ func (s *Server) handleContributorCreate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Create a new membership between the current user and the repo associated
+	// with the invite code.
 	contributor := &todev.Contributor{
 		RepoID: repos[0].ID,
 		UserID: userID,
@@ -77,6 +90,9 @@ func (s *Server) handleContributorCreate(w http.ResponseWriter, r *http.Request)
 		Error(w, r, fmt.Errorf("error creating contirbutor: %v", err))
 		return
 	}
+
+	SetFlash(w, fmt.Sprintf("You have now joined the %s repo", repos[0].Name))
+	http.Redirect(w, r, fmt.Sprintf("/repos/%d", contributor.RepoID), http.StatusFound)
 }
 
 // handleContritbutorUpdate handles the "PATCH /contributor/:id" route. This route
@@ -105,8 +121,8 @@ func (s *Server) handleContritbutorUpdate(w http.ResponseWriter, r *http.Request
 	if contritbutor, err := s.ContributorService.UpdateContributor(r.Context(), id, upd); err != nil {
 		Error(w, r, fmt.Errorf("error updating contritbutor: %v", err))
 		return
-	} else if err = json.Write(w, http.StatusOK, contritbutor); err != nil {
-		Error(w, r, fmt.Errorf("error writing response: %v", err))
+	} else if err = json.Encode(contritbutor, w); err != nil {
+		LogError(r, fmt.Errorf("error writing response: %v", err))
 		return
 	}
 }
