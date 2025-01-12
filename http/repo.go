@@ -135,8 +135,6 @@ func (s *Server) handleRepoView(w http.ResponseWriter, r *http.Request) {
 			InviteCode: fmt.Sprintf("%s/invite/%s", s.URL(), repo.InviteCode),
 		}
 
-		w.Header().Add("Hx-Redirect", fmt.Sprintf("/repos/%d", repo.ID))
-
 		if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/repoView.html"); err != nil {
 			LogError(r, fmt.Errorf("error parsing html file: %v", err))
 			return
