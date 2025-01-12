@@ -402,7 +402,7 @@ func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
 // handleIndex handles the "GET /" route.
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if todev.UserIDFromContext(r.Context()) == 0 {
-		http.Redirect(w, r, "/login", http.StatusNotFound)
+		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
 
