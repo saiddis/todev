@@ -25,7 +25,7 @@ func (s *Server) registerAuthRoutes(r *mux.Router) {
 
 // handleLogin handles the "GET /login" route.
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/login.html"); err != nil {
+	if tmpl, err := template.ParseFS(templateFiles, "html/login.html"); err != nil {
 		LogError(r, fmt.Errorf("error parsing html file: %v", err))
 		return
 	} else if err = tmpl.Execute(w, nil); err != nil {
