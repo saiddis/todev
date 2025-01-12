@@ -115,7 +115,9 @@ func (m *Main) Run(ctx context.Context) (err error) {
 	}
 
 	// Initialize event service for real-time events.
-	m.DB.EventService = inmem.NewEventService()
+	eventService := inmem.NewEventService()
+
+	m.DB.EventService = eventService
 
 	if m.DB.DSN, err = expand(m.Config.DB.DSN); err != nil {
 		return fmt.Errorf("error expanding dsn: %w", err)
@@ -126,12 +128,11 @@ func (m *Main) Run(ctx context.Context) (err error) {
 	}
 
 	// Initialize PostgreSQL-backed services.
-	m.HTTPServer.AuthService = postgres.NewAuthService(m.DB)
-	m.HTTPServer.RepoService = postgres.NewRepoService(m.DB)
-	m.HTTPServer.ContributorService = postgres.NewContrubutorService(m.DB)
-	m.HTTPServer.TaskService = postgres.NewTaskService(m.DB)
+	authService := postgres.NewAuthService(m.DB)
+	repoService := postgres.NewRepoService(m.DB)
+	contributorService := postgres.NewContrubutorService(m.DB)
+	taskService := postgres.NewTaskService(m.DB)
 	userService := postgres.NewUserService(m.DB)
-	m.HTTPServer.UserService = userService
 
 	// Attach user service Main for testing.
 	m.UserService = userService
@@ -143,6 +144,13 @@ func (m *Main) Run(ctx context.Context) (err error) {
 	m.HTTPServer.BlockKey = m.Config.HTTP.BlockKey
 	m.HTTPServer.GitHubClientID = m.Config.Github.ClientID
 	m.HTTPServer.GitHubClientSecret = m.Config.Github.ClientSecret
+
+	m.HTTPServer.AuthService = authService
+	m.HTTPServer.RepoService = repoService
+	m.HTTPServer.ContributorService = contributorService
+	m.HTTPServer.UserService = userService
+	m.HTTPServer.TaskService = taskService
+	m.HTTPServer.EventService = eventService
 
 	// Start HTTP server.
 	if err = m.HTTPServer.Open(); err != nil {
