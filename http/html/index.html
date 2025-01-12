@@ -1,5 +1,4 @@
 {{define "title"}}Todev{{end}}
-{{define "scripts"}}{{end}}
 {{define "body"}}
 
 {{if eq (len .Repos) 0}}
@@ -10,14 +9,19 @@
 	<ul>
 		{{range $repo := .Repos}}
 		<li>
-			<div class="flex item between-h" hx-get="/repos/{{$repo.ID}}" hx-target="body">
-				<h3>{{$repo.Name}}</h3>
+			<div class="flex item between-h width-90">
+				<h3><a href="/repos/{{$repo.ID}}">{{$repo.Name}}</a></h3>
 				<h3>{{$repo.UpdatedAt}}</h3>
 			</div>
 		</li>
 		{{end}}
 	</ul>
+
+	<form method="GET" action="/repos/new" class="flex center-h col">
+		<button type="submit">Create Repo</button>
+	</form>
 </main>
 {{end}}
-
 {{end}}
+
+{{define "scripts"}}{{end}}
