@@ -1,0 +1,23 @@
+{{define "title"}}{{.Repo.Name}} Invitation{{end}}
+{{define "body"}}
+<main class="center-h">
+	<form method="POST" class="form">
+		<div class="flex col center">
+			<div class="flex col">
+				<h3>
+					Invitation
+				</h3>
+
+				<p>
+					You've been invited to contribute to the <strong>
+						{{.Repo.Name}}
+					</strong> repo.
+				</p>
+			</div>
+
+			<button type="submit">Accept Invitation</button>
+		</div>
+	</form>
+</main>
+{{end}}
+{{define "scripts"}}{{end}}
