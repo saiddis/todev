@@ -197,28 +197,24 @@
 
 
 	function connect() {
-		//const socket = new ReconnectingWebSocket((location.protocol == 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/events');
-		//socket.addEventListenter('message', function (event) {
-		//	const e = JSON.parse(event.data)
-		//	console.log(e)
-		//
-		//	switch (e.type) {
-		//		case 'task:added':
-		//			const li = document.createElement('li')
-		//			li.classList.add('flex', 'center-h')
-		//
-		//			if ("{{.UserID}}" == "{{.Repo.UserID}}") {
-		//				new Task(li, e.payload.task.description)
-		//			} else {
-		//				new UserTask(li, e.payload.task.description)
-		//			}
-		//	}
 		const socket = new ReconnectingWebSocket((location.protocol == 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/events');
-		socket.addEventListener('message', function (event) {
+		socket.addEventListenter('message', function (event) {
 			const e = JSON.parse(event.data)
 			console.log(e)
-		});
-	};
+
+			switch (e.type) {
+				case 'task:added':
+					const li = document.createElement('li')
+					li.classList.add('flex', 'center-h')
+
+					if ("{{.UserID}}" == "{{.Repo.UserID}}") {
+						new Task(li, e.payload.task.description)
+					} else {
+						new UserTask(li, e.payload.task.description)
+					}
+			}
+		})
+	}
 
 	connect()
 </script>
