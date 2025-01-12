@@ -363,6 +363,7 @@ func updateAuth(ctx context.Context, tx *Tx, id int, accessToken, refreshToken s
 		auth.AccessToken,
 		auth.RefreshToken,
 		(*NullTime)(&auth.Expiry),
+		(*NullTime)(&auth.UpdatedAt),
 		id,
 	)
 	if err != nil {
