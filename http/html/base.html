@@ -16,8 +16,11 @@
 <body>
 	<nav>
 		<a class="logo" href="/"><span>todev</span></a>
-		<div class="profile">
-			<a href="/repos/new">Create a repo</a>
+		<div id="profile">
+			<form action="/logout" method="POST">
+				<input type="hidden" name="_method" value="DELETE" />
+				<button id="logout-button" type="submit">Logout</button>
+			</form>
 			<img class="avatar" src="" aria-placeholder="Avatar" />
 		</div>
 	</nav>
@@ -31,7 +34,7 @@
 			<a href="https://github.com/saiddis">said</a>
 		</div>
 	</footer>
-	<script src="../assets/scripts/main.js">
+	<script src="../assets/scripts/base.js">
 	</script>
 </body>
 
