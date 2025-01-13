@@ -89,20 +89,17 @@ type Main struct {
 }
 
 func NewMain() *Main {
-	dsn, ok := todev.GetFromEnv("../../.env", "DB_URL")
-	if !ok {
-		log.Fatalf("failed to find config value for: %s", dsn)
-	}
-
-	return &Main{
-		DB:         postgres.New(dsn),
-		HTTPServer: http.NewServer(),
-	}
+	return &Main{}
 }
 
 // Run executes the program. The configuration should already be set up before
 // calling this function.
 func (m *Main) Run(ctx context.Context) (err error) {
+
+	// Initialize server and database.
+	m.HTTPServer = http.NewServer()
+	m.DB = postgres.New(m.Config.DB.DSN)
+
 	// Initialize error tracking
 	if m.Config.Rollbar.Token != "" {
 		rollbar.SetToken(m.Config.Rollbar.Token)
@@ -237,18 +234,6 @@ type Config struct {
 	Rollbar struct {
 		Token string `mapstructure:"token"`
 	} `mapstructure:"rollbar"`
-}
-
-// DefaultConfig returns a new instance of config with defaul set.
-func DefaultConfig() Config {
-	var config Config
-	if dsn, ok := todev.GetFromEnv(todev.DefaultEnvFilePath, "DB_URL"); ok {
-		config.DB.DSN = dsn
-		return config
-	}
-
-	log.Fatal("failed to get value from env file for dsn")
-	return config
 }
 
 // ReadConfigFile unmarshals configs from a config file.
