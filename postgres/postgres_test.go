@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/saiddis/todev"
 	"github.com/saiddis/todev/postgres"
 )
 
@@ -23,12 +22,10 @@ type testFunc func(t testing.TB, conn *postgres.Conn)
 
 // WithSchema create a new schema runs given test argument on it.
 func WithSchema(tb testing.TB, test testFunc) {
+	flag.Parse()
+
 	if *pgaddr == "" {
-		if url, ok := todev.GetFromEnv("../.env", "DB_URL"); ok != false {
-			*pgaddr = url
-		} else {
-			tb.Skip("-dsn flag is not defined; skipping test")
-		}
+		tb.Skip("-dsn flag is not defined; skipping test")
 	}
 
 	// We need to create a unique schema name so that our parallel tests don't clash.
