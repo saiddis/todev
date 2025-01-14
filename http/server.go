@@ -43,6 +43,12 @@ var (
 		Name: "todev_http_request_seconds",
 		Help: "Total amount of request time by route, in seconds",
 	}, []string{"method", "path"})
+
+	latencyDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "todev_http_requests_duration_seconds",
+		Help:    "Duration of http requests",
+		Buckets: []float64{0.1, 0.25, 0.5, 1.0, 2.5},
+	}, []string{"method", "path"})
 )
 
 const ShutdownTimeout = 1 * time.Second
@@ -361,8 +367,8 @@ func trackMetrics(next http.Handler) http.Handler {
 		if tmpl != "" && tmpl != "/events" {
 			requestCount.WithLabelValues(r.Method, tmpl).Inc()
 			requestSeconds.WithLabelValues(r.Method, tmpl).Add(float64(time.Since(t).Seconds()))
+			latencyDuration.WithLabelValues(r.Method, tmpl).Observe(float64(time.Since(t).Seconds()))
 		}
-
 	})
 }
 
