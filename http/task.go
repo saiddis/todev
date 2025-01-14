@@ -88,14 +88,15 @@ func (s *Server) handleTaskCreate(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Header.Get("Accept") {
 	case "application/json":
-		if err = json.Write(w, http.StatusCreated, task); err != nil {
+		w.WriteHeader(http.StatusCreated)
+		if err = json.Encode(task, w); err != nil {
 			LogError(r, err)
 			return
 		}
 	}
 }
 
-// handleTaskUpdate handles the "PATCH /contributor/:id" route. This route is only
+// handleTaskUpdate handles the "PATCH /tasks/:id" route. This route is only
 // called via JSON API on the repo view page.
 func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
@@ -117,20 +118,6 @@ func (s *Server) handleTaskUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// description := r.PostFormValue("description")
-	// upd.Description = &description
-	// if contributorID := r.PostFormValue("contributorID"); contributorID != "" {
-	// 	intID, err := strconv.Atoi(contributorID)
-	// 	if err != nil {
-	// 		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid contributor ID format"))
-	// 		return
-	// 	}
-	// 	upd.ContributorID = &intID
-	// }
-	// if toggleCompletion := r.PostFormValue("toggleCompletion"); toggleCompletion == "true" {
-	// 	upd.ToggleCompletion = true
-	// }
-
 	if task, err := s.TaskService.UpdateTask(r.Context(), id, upd); err != nil {
 		Error(w, r, fmt.Errorf("error updating task: %v", err))
 		return
@@ -148,13 +135,13 @@ func (s *Server) handleTaskDelete(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid ID format"))
 		return
 	}
-	if task, err := s.TaskService.FindTaskByID(r.Context(), id); err != nil {
+	if _, err := s.TaskService.FindTaskByID(r.Context(), id); err != nil {
 		Error(w, r, fmt.Errorf("error retrieving task by ID: %v", err))
 		return
 	} else if err = s.TaskService.DeleteTask(r.Context(), id); err != nil {
 		Error(w, r, fmt.Errorf("error deleting task by ID: %v", err))
 		return
-	} else if err = json.Write(w, http.StatusOK, task); err != nil {
+	} else if err = json.Encode("{}", w); err != nil {
 		Error(w, r, fmt.Errorf("error writing response: %v", err))
 		return
 	}
