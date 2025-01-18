@@ -39,8 +39,6 @@ func (s *Server) handleTasksFind(w http.ResponseWriter, r *http.Request) {
 			LogError(r, fmt.Errorf("error closing request body: %v", err))
 		}
 	}()
-	userID := todev.UserIDFromContext(r.Context())
-	filter = todev.TaskFilter{UserID: &userID}
 
 	tasks, n, err := s.TaskService.FindTasks(r.Context(), filter)
 	if err != nil {
@@ -135,11 +133,9 @@ func (s *Server) handleTaskDelete(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid ID format"))
 		return
 	}
-	if _, err := s.TaskService.FindTaskByID(r.Context(), id); err != nil {
-		Error(w, r, fmt.Errorf("error retrieving task by ID: %v", err))
-		return
-	} else if err = s.TaskService.DeleteTask(r.Context(), id); err != nil {
-		Error(w, r, fmt.Errorf("error deleting task by ID: %v", err))
+
+	if err = s.TaskService.DeleteTask(r.Context(), id); err != nil {
+		Error(w, r, fmt.Errorf("error deleting task by ID=%d: %v", id, err))
 		return
 	} else if err = json.Encode("{}", w); err != nil {
 		Error(w, r, fmt.Errorf("error writing response: %v", err))

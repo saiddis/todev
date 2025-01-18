@@ -110,7 +110,7 @@ func (s *TaskService) FindTaskByID(ctx context.Context, id int) (*todev.Task, er
 		}
 	}()
 
-	task, err := findTasksByID(ctx, tx, id)
+	task, err := findTaskByID(ctx, tx, id)
 	if err != nil {
 		return nil, err
 	} else if err = attachTaskAssociations(ctx, tx, task); err != nil {
@@ -210,7 +210,7 @@ func createTask(ctx context.Context, tx *Tx, task *todev.Task) (err error) {
 	return nil
 }
 
-func findTasksByID(ctx context.Context, tx *Tx, id int) (*todev.Task, error) {
+func findTaskByID(ctx context.Context, tx *Tx, id int) (*todev.Task, error) {
 	tasks, _, err := findTasks(ctx, tx, todev.TaskFilter{ID: &id})
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving task by ID: %w", err)
@@ -228,10 +228,6 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 		argIndex++
 		where, args = append(where, fmt.Sprintf("t.id = $%d", argIndex)), append(args, *v)
 	}
-	if v := filter.UserID; v != nil {
-		argIndex++
-		where, args = append(where, fmt.Sprintf("u.id = $%d", argIndex)), append(args, *v)
-	}
 	if v := filter.RepoID; v != nil {
 		argIndex++
 		where, args = append(where, fmt.Sprintf("t.repo_id = $%d", argIndex)), append(args, *v)
@@ -248,7 +244,7 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 	argIndex++
 	where = append(where, fmt.Sprintf(`(
 		r.user_id = $%d OR
-		c.repo_id IN (SELECT c1.repo_id FROM contributors c1 WHERE c1.user_id = $%d)
+		t.repo_id IN (SELECT repo_id FROM contributors WHERE user_id = $%d)
 		)`, argIndex, argIndex+1),
 	)
 	argIndex++
@@ -259,9 +255,7 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 	case todev.TasksSortByCreatedAtDesc:
 		sortBy = "t.created_at DESC"
 	default:
-		argIndex++
-		sortBy = fmt.Sprintf(`CASE c.user_id WHEN $%d THEN 0 ELSE 1 END ASC, t.is_completed DESC`, argIndex)
-		args = append(args, userID)
+		sortBy = `t.is_completed DESC`
 	}
 	args = append(args, userID, userID)
 
@@ -277,12 +271,10 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 			COUNT(*) OVER()
 		FROM tasks t
 		JOIN repos r ON t.repo_id = r.id
-		JOIN contributors c ON t.contributor_id = c.id
-		JOIN users u ON c.user_id = u.id
 		WHERE `+strings.Join(where, " AND ")+`
-		GROUP BY t.id, r.user_id, c.user_id
+		GROUP BY t.id
 		ORDER BY `+sortBy+`
-		`+FormatLimitOffset(filter.Limit, filter.Offset)+`;`,
+		`+FormatLimitOffset(filter.Limit, filter.Offset),
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error preparing query: %w", err)
@@ -327,7 +319,7 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 }
 
 func updateTask(ctx context.Context, tx *Tx, id int, upd todev.TaskUpdate) (_ *todev.Task, err error) {
-	task, err := findTasksByID(ctx, tx, id)
+	task, err := findTaskByID(ctx, tx, id)
 	if err != nil {
 		return nil, err
 	} else if err = attachTaskAssociations(ctx, tx, task); err != nil {
@@ -412,7 +404,7 @@ func updateTask(ctx context.Context, tx *Tx, id int, upd todev.TaskUpdate) (_ *t
 }
 
 func deleteTask(ctx context.Context, tx *Tx, id int) error {
-	task, err := findTasksByID(ctx, tx, id)
+	task, err := findTaskByID(ctx, tx, id)
 	if err != nil {
 		return err
 	} else if err = attachTaskAssociations(ctx, tx, task); err != nil {
