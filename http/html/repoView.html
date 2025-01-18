@@ -1,6 +1,6 @@
 {{define "title"}}{{.Repo.Name}}{{end}}
 {{define "body"}}
-<main>
+<main repo-id={{.Repo.ID}}>
 	<div class="grid row-1">
 		<div class="flex col gap" id="contribs-pane">
 			<button id="invite-link-button" onclick="copyContent('{{.InviteCode}}')">Copy invite
@@ -38,8 +38,12 @@
 {{define "scripts"}}
 <script src="../assets/scripts/reconnecting-websocket.js"></script>
 <script>
+	const repoID = document.querySelector('main').getAttribute('repo-id')
+
 	class Task {
-		constructor(wrapper, description) {
+		constructor(wrapper, description, id) {
+			this.id = id
+
 			this.parent = this.getParentElement()
 			this.remove = this.getRemoveElement()
 			this.checkBox = this.getCheckBoxElement()
@@ -54,7 +58,8 @@
 
 		getParentElement() {
 			let label = document.createElement('label')
-			label.classList.add('checkbox', 'flex', 'center-h', 'gap')
+			label.classList.add('task', 'checkbox', 'flex', 'center-h', 'gap')
+			label.setAttribute('task-id', this.id)
 			return label
 		}
 
@@ -90,7 +95,19 @@
 			return wrapper
 		}
 
-		onRemove(event) {
+		async onRemove(event) {
+			try {
+				const resp = fetch('/tasks/' + this.id, {
+					method: 'DELETE',
+					headers: {
+						'Content-type': 'application/json',
+						'Accept': 'application/json',
+					}
+				})
+			} catch (err) {
+				console.log(err)
+				return false
+			}
 			this.wrapper.remove()
 			if (titleCompleted == completedTasksList.lastElementChild) {
 				completedTasksList.hidden = true
@@ -174,16 +191,49 @@
 		tasksList.append(li)
 
 		input.focus()
-		input.onblur = () => {
+		input.onblur = async () => {
 			if (!input.value.trim()) {
 				li.remove()
 				return
 			}
 
 			let description = input.value
-			input.remove()
-			new Task(li, description)
+			let id = 0
+			let intRepoID = parseInt(repoID)
+			if (!intRepoID) {
+				return false
+			}
+			console.log(intRepoID)
+			console.log(repoID)
+
+			try {
+				const resp = await fetch('/tasks', {
+					method: 'POST',
+					headers: {
+						'Content-type': 'application/json',
+						'Accept': 'application/json',
+					},
+					body: JSON.stringify({
+						description: description,
+						repoID: intRepoID,
+					}),
+				})
+				console.log(resp)
+				const task = await resp.json()
+				console.log(task)
+				id = task.id
+			} catch (err) {
+				console.log(err)
+				return
+			}
+
+			if (id) {
+				input.remove()
+				new Task(li, description, id)
+			}
 		}
+
+
 	}
 
 	const copyContent = async (text) => {
@@ -211,6 +261,11 @@
 						new Task(li, e.payload.task.description)
 					} else {
 						new UserTask(li, e.payload.task.description)
+					}
+				case 'task:deleted':
+					taks = document.querySelector(`.task[task-id=${e.payload.id}]`)
+					if (task) {
+						task.remove()
 					}
 			}
 		})
