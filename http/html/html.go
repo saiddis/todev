@@ -34,9 +34,11 @@ type ContributorCreateTemplate struct {
 
 // RepoViewTemplate represents template data for "GET /repos/{id}".
 type RepoViewTemplate struct {
-	UserID     int
-	Repo       *todev.Repo
-	InviteCode string
+	UserID      int
+	Contributor *todev.Contributor
+	Tasks       []*todev.Task
+	Repo        *todev.Repo
+	InviteCode  string
 }
 
 // RepoIndexTemplate represents template data for "GET /repos".

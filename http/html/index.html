@@ -6,12 +6,12 @@
 
 {{else}}
 <main>
-	<ul>
+	<ul class="flex col gap">
 		{{range $repo := .Repos}}
 		<li>
 			<div class="flex item between-h width-90">
 				<h3><a href="/repos/{{$repo.ID}}">{{$repo.Name}}</a></h3>
-				<h3>{{$repo.UpdatedAt}}</h3>
+				<h3 class="time">{{$repo.UpdatedAt}}</h3>
 			</div>
 		</li>
 		{{end}}
@@ -24,4 +24,6 @@
 {{end}}
 {{end}}
 
-{{define "scripts"}}{{end}}
+{{define "scripts"}}
+<script src="/assets/scripts/index.js"></script>
+{{end}}
