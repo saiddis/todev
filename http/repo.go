@@ -122,6 +122,9 @@ func (s *Server) handleRepoView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currUserID := todev.UserIDFromContext(r.Context())
+	currContributor := repo.ContributorByUserID(currUserID)
+	currContributorTasks := repo.TasksByContributorID(currContributor.ID)
 	switch r.Header.Get("Accept") {
 	case "application/json":
 		if err = json.Encode(repo, w); err != nil {
@@ -130,9 +133,11 @@ func (s *Server) handleRepoView(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		tmplData := html.RepoViewTemplate{
-			UserID:     todev.UserIDFromContext(r.Context()),
-			Repo:       repo,
-			InviteCode: fmt.Sprintf("%s/invite/%s", s.URL(), repo.InviteCode),
+			UserID:      currUserID,
+			Contributor: currContributor,
+			Tasks:       currContributorTasks,
+			Repo:        repo,
+			InviteCode:  fmt.Sprintf("%s/invite/%s", s.URL(), repo.InviteCode),
 		}
 
 		if tmpl, err := template.ParseFS(templateFiles, "html/base.html", "html/repoView.html"); err != nil {

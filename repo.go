@@ -41,27 +41,24 @@ type Repo struct {
 }
 
 // ContributorByUserID returns the contributor attached to the repo for the given user ID.
-func (r Repo) ContributorByUserID(ctx context.Context, userID int) *Contributor {
-	for _, m := range r.Contributors {
-		if m.UserID == userID {
-			return m
+func (r Repo) ContributorByUserID(userID int) *Contributor {
+	for _, c := range r.Contributors {
+		if c.UserID == userID {
+			return c
 		}
 	}
 	return nil
 }
 
 // TasksByContributorID returns the tasks attached to contributor by the given contributor ID.
-func (r Repo) TasksByContributorID(ctx context.Context, contribID int) ([]*Task, error) {
-	for _, c := range r.Contributors {
-		if c.ID == contribID {
-			tasks := make([]*Task, len(r.Tasks))
-			for i := 0; i < len(tasks); i++ {
-				tasks[i] = r.Tasks[i]
-			}
-			return tasks, nil
+func (r Repo) TasksByContributorID(contribID int) []*Task {
+	tasks := make([]*Task, 0, len(r.Tasks))
+	for _, t := range r.Tasks {
+		if t.ContributorID == nil || *t.ContributorID == contribID {
+			tasks = append(tasks, t)
 		}
 	}
-	return nil, Errorf(ENOTFOUND, "No contributor for the given id: %d", contribID)
+	return tasks
 }
 
 // Validate retruns an error if a repo has invalid fields.
