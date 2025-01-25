@@ -22,51 +22,48 @@
 			</button>
 			{{end}}
 
-			<ul id="tasks-list">
-				{{range $task := .Tasks}}
-				{{if eq $task.IsCompleted false}}
-				<script>
-					window.addEventListener('load', function () {
-						document.getElementById('tasks-list').dispatchEvent(new CustomEvent('add-task', {
-							bubbles: true,
-							detail: {
-								description: "{{$task.Description}}",
-								isCompleted: false,
-								id: "{{$task.ID}}"
-							}
-						}))
-					})
-				</script>
-				{{end}}
-				{{end}}
+			<ul id="tasks-list" class="container">
 			</ul>
-
-			<ul id="completed-tasks-list" hidden>
+			<ul id="completed-tasks-list" class="container" hidden>
 				<hr>
 				<h3 id="title-completed">Completed</h3>
-				{{range $task := .Tasks}}
-				{{if eq $task.IsCompleted true}}
-				<script>
-					window.addEventListener('load', function () {
-						document.getElementById('completed-tasks-list').dispatchEvent(new CustomEvent('add-task', {
-							bubbles: true,
-							detail: {
-								description: "{{$task.Description}}",
-								isCompleted: true,
-								id: "{{$task.ID}}"
-							}
-						}))
-					})
-				</script>
-				{{end}}
-				{{end}}
 			</ul>
 		</div>
 	</div>
+	{{range $task := .Tasks}}
+	{{if eq $task.IsCompleted true}}
+	<script>
+		window.addEventListener('load', function () {
+			document.getElementById('completed-tasks-list').dispatchEvent(new CustomEvent('add-task', {
+				bubbles: true,
+				detail: {
+					description: "{{$task.Description}}",
+					isCompleted: true,
+					id: "{{$task.ID}}",
+				}
+			}))
+		})
+	</script>
+	{{else}}
+	<script>
+		window.addEventListener('load', function () {
+			document.getElementById('tasks-list').dispatchEvent(new CustomEvent('add-task', {
+				bubbles: true,
+				detail: {
+					description: "{{$task.Description}}",
+					isCompleted: false,
+					id: "{{$task.ID}}",
+				}
+			}))
+		})
+	</script>
+	{{end}}
+	{{end}}
 </main>
 {{end}}
 
 {{define "scripts"}}
-<script defer src="/assets/scripts/reconnecting-websocket.js"></script>
-<script defer src="/assets/scripts/repoView.js"></script>
+<script src="/assets/scripts/reconnecting-websocket.js"></script>
+<script src="/assets/scripts/task.js"></script>
+<script src="/assets/scripts/repoView.js"></script>
 {{end}}
