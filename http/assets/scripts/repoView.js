@@ -138,11 +138,19 @@ function connect() {
 				}
 				break
 			case 'task:completion_toggled':
-				let input = document.querySelector(`.task[data-task-id="${e.payload.id}"] input[type="checkbox"]`)
-				if (input != null) {
-					input.dispatchEvent(new Event('change', {
+				let checkbox = document.querySelector(`.task[data-task-id="${e.payload.id}"] input[type="checkbox"]`)
+				if (checkbox != null) {
+					checkbox.dispatchEvent(new Event('change', {
 						bubbles: false,
 					}))
+				} else {
+					console.log("couldn't find task by id: " + e.payload.id)
+				}
+				break
+			case 'task:description_changed':
+				let input = document.querySelector(`.task[data-task-id="${e.payload.id}"] input[type="text"]`)
+				if (input != null) {
+					input.value = e.payload.value
 				} else {
 					console.log("couldn't find task by id: " + e.payload.id)
 				}

@@ -13,11 +13,12 @@ class Task {
 
 		this.checkBox.onchange = (event) => this.onCheckBox(event)
 		this.remove.onclick = (event) => this.onRemove(event)
+		this.description.onchange = (event) => this.onDescriptionChange(event)
 	}
 
 	getTaskElement() {
 		let label = document.createElement('label')
-		label.classList.add('checkbox', 'flex', 'center-h', 'gap')
+		label.classList.add('checkbox', 'inline-flex', 'center-h', 'gap')
 		return label
 	}
 
@@ -73,6 +74,26 @@ class Task {
 				remove: true,
 			}
 		}))
+	}
+
+	onDescriptionChange(event) {
+		if (event.target != this.description) {
+			event.preventDefault()
+			return false
+		} else if (!this.description.value.trim()) {
+			this.description.focus()
+			return false; // prevent from adding the task to the .completed-task-list
+		}
+
+		changeDescription(this.id, this.description.value).
+			then(value => {
+				if (value) {
+					this.description.value = value
+				} else {
+					event.preventDefault()
+					return false
+				}
+			})
 	}
 
 	onCheckBox(event) {
@@ -195,5 +216,28 @@ async function toggleCompletion(taskID) {
 	} catch (err) {
 		console.error(err)
 		return false
+	}
+}
+
+async function changeDescription(taskID, value) {
+	try {
+		let resp = await fetch('/tasks/' + taskID, {
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept': 'application/json',
+			},
+			body: JSON.stringify({
+				description: value,
+			}),
+		})
+		if (resp.ok) {
+			let task = resp.json()
+			return task.description
+		}
+		return ""
+	} catch (err) {
+		console.error(err)
+		return ""
 	}
 }
