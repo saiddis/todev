@@ -94,7 +94,7 @@ type TaskFilter struct {
 
 // TaskUpdate represents a set of fields to update on a task.
 type TaskUpdate struct {
-	Description      *string `json:"statement"`
+	Description      *string `json:"description"`
 	ContributorID    *int    `json:"contributorID"`
 	ToggleCompletion bool    `json:"toggleCompletion"`
 }
