@@ -3,32 +3,33 @@
 <main id="repo-info" data-repo-id={{.Repo.ID}} data-contributor-id={{.Contributor.ID}}
 	data-is-admin={{.Contributor.IsAdmin}}>
 	<div class="grid row-1">
-		<div class="flex col gap" id="contribs-pane">
+		<div id="contribs-pane">
 			<button id="invite-link-button" onclick="copyContent('{{.InviteCode}}')">Copy invite
 				link</button>
-			{{range $contributor := .Repo.Contributors}}
-			<div class="flex center-h gap">
-				<img class="avatar small" src="{{$contributor.User.AvatarURL}}"
-					aria-placeholder="Avatar" />
-				<h4>{{$contributor.User.Name}}</h4>
-			</div>
-			{{end}}
+			<ul>
+				{{range $contributor := .Repo.Contributors}}
+				<li class="flex center-h gap">
+					<img class="avatar small" src="{{$contributor.User.AvatarURL}}"
+						aria-placeholder="Avatar" />
+					<h4>{{$contributor.User.Name}}</h4>
+				</li>
+				{{end}}
+			</ul>
 		</div>
 
 		<div id="tasks-pane">
-			{{if eq .UserID .Repo.UserID}}
 			<button id="add-task-button">
 				Create task
 			</button>
-			{{end}}
-
 			<ul id="tasks-list" class="container">
 			</ul>
 			<ul id="completed-tasks-list" class="container" hidden>
 				<hr>
 				<h3 id="title-completed">Completed</h3>
 			</ul>
+			{{if eq .UserID .Repo.UserID}}
 		</div>
+		{{end}}
 	</div>
 	{{range $task := .Tasks}}
 	{{if eq $task.IsCompleted true}}
