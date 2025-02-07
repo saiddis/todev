@@ -1,11 +1,10 @@
 {{define "title"}}Todev{{end}}
 {{define "body"}}
-
-{{if eq (len .Repos) 0}}
-<p>No repositories available.</p>
-
-{{else}}
 <main>
+	{{if eq (len .Repos) 0}}
+	<h3>No repos...</h3>
+
+	{{else}}
 	<ul class="flex col gap">
 		{{range $repo := .Repos}}
 		<li>
@@ -16,12 +15,12 @@
 		</li>
 		{{end}}
 	</ul>
+	{{end}}
 
 	<form method="GET" action="/repos/new" class="flex center-h col">
 		<button type="submit">Create Repo</button>
 	</form>
 </main>
-{{end}}
 {{end}}
 
 {{define "scripts"}}
