@@ -3,17 +3,17 @@
 <main id="repo-info" data-repo-id={{.Repo.ID}} data-contributor-id={{.Contributor.ID}}
 	data-is-admin={{.Contributor.IsAdmin}}>
 	<div class="grid row-1">
-		<div id="contribs-pane">
+		<div id="contributors-pane">
 			<button id="invite-link-button" onclick="copyContent('{{.InviteCode}}')">Copy invite
 				link</button>
 			<ul>
-				{{range $contributor := .Repo.Contributors}}
-				<li class="flex center-h gap">
-					<img class="avatar small" src="{{$contributor.User.AvatarURL}}"
-						aria-placeholder="Avatar" />
-					<h4>{{$contributor.User.Name}}</h4>
-				</li>
-				{{end}}
+				<!--{{range $contributor := .Repo.Contributors}}-->
+				<!--<li class="flex center-h gap">-->
+				<!--	<img class="avatar small" src="{{$contributor.User.AvatarURL}}"-->
+				<!--		aria-placeholder="Avatar" />-->
+				<!--	<h4>{{$contributor.User.Name}}</h4>-->
+				<!--</li>-->
+				<!--{{end}}-->
 			</ul>
 		</div>
 
@@ -31,18 +31,34 @@
 		</div>
 		{{end}}
 	</div>
+	{{range $contributor := .Repo.Contributors}}
+	<script>
+		window.addEventListener('load', function () {
+			document.getElementById('contributors-pane').
+				dispatchEvent(new CustomEvent('add-contributor', {
+					bubbles: true,
+					detail: {
+						name: "{{$contributor.User.Name}}",
+						avatarURL: "{{$contributor.User.AvatarURL}}",
+						id: "{{$contributor.ID}}",
+					}
+				}))
+		})
+	</script>
+	{{end}}
 	{{range $task := .Tasks}}
 	{{if eq $task.IsCompleted true}}
 	<script>
 		window.addEventListener('load', function () {
-			document.getElementById('completed-tasks-list').dispatchEvent(new CustomEvent('add-task', {
-				bubbles: true,
-				detail: {
-					description: "{{$task.Description}}",
-					isCompleted: true,
-					id: "{{$task.ID}}",
-				}
-			}))
+			document.getElementById('completed-tasks-list').
+				dispatchEvent(new CustomEvent('add-task', {
+					bubbles: true,
+					detail: {
+						description: "{{$task.Description}}",
+						isCompleted: true,
+						id: "{{$task.ID}}",
+					}
+				}))
 		})
 	</script>
 	{{else}}
@@ -66,5 +82,6 @@
 {{define "scripts"}}
 <script src="/assets/scripts/reconnecting-websocket.js"></script>
 <script src="/assets/scripts/task.js"></script>
+<script src="/assets/scripts/contributor.js"></script>
 <script src="/assets/scripts/repoView.js"></script>
 {{end}}
