@@ -3,6 +3,7 @@ const repoID = repoInfo.dataset.repoId
 const contributorID = repoInfo.dataset.contributorId
 const isAdmin = repoInfo.dataset.isAdmin
 const tasksPane = document.getElementById('tasks-pane')
+const conributorsPane = document.getElementById('contributors-pane')
 const tasksList = document.getElementById('tasks-list')
 const completedTasksList = document.getElementById('completed-tasks-list')
 const titleCompleted = document.getElementById('title-completed')
@@ -15,6 +16,7 @@ const copyContent = async (text) => {
 		console.error('Failed to copy: ', err);
 	}
 }
+
 
 tasksPane.addEventListener('escape-task', function(event) {
 	if (event.target.parentElement == tasksList) {
@@ -40,7 +42,6 @@ tasksPane.addEventListener('escape-task', function(event) {
 
 tasksPane.addEventListener('add-task', function(event) {
 	let li = document.createElement('li')
-	li.classList.add('flex', 'center-h')
 
 	if (isAdmin == 'true') {
 		new Task(li, event.detail.description, event.detail.id, event.detail.isCompleted)
@@ -51,6 +52,14 @@ tasksPane.addEventListener('add-task', function(event) {
 	if (event.target.hidden) {
 		event.target.hidden = false
 	}
+	event.target.append(li)
+})
+
+conributorsPane.addEventListener('add-contributor', function(event) {
+	let li = document.createElement('li')
+
+	new Contributor(li, event.detail.name, event.detail.avatarURL, event.detail.id)
+
 	event.target.append(li)
 })
 
@@ -114,7 +123,6 @@ function connect() {
 		switch (e.type) {
 			case 'task:added':
 				const li = document.createElement('li')
-				li.classList.add('flex', 'center-h')
 
 				if (isAdmin == 'true') {
 					new Task(li, e.payload.task.description, e.payload.task.id, false)
