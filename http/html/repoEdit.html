@@ -2,14 +2,16 @@
 
 {{define "body"}}
 <main class="center-h">
-	<form method="POST" class="form flex col center">
-		{{if ne .Repo.ID 0}}
-		<input type="hidden" name="_method" value="PATCH" />
-		{{end}}
-		<label for="name">Repo Name</label>
-		<input type="text" id="name" name="name" value="{{.Repo.Name}}" autofocus maxlength="32" />
-
-		<button type="submit">Save</button>
+	<form method="POST" class="form">
+		<div class="flex col center gap">
+			{{if ne .Repo.ID 0}}
+			<input type="hidden" name="_method" value="PATCH" />
+			{{end}}
+			<input type="text" id="name" name="name" class="form__input" value="{{.Repo.Name}}" autofocus
+				maxlength="32" placeholder="Repo Name" required="" />
+			<label for="name" class="form__label">Repo Name</label>
+			<button type="submit">Save</button>
+		</div>
 	</form>
 </main>
 {{end}}
