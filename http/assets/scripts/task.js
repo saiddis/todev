@@ -1,3 +1,16 @@
+class Droppable {
+	constructor(elem, dropEvent) {
+		this.elem = elem
+		this.elem.addEventListener(dropEvent, this.onDrop)
+	}
+
+	onDrop(event) {
+		this.append(event.detail.draggable)
+	}
+
+}
+
+
 class Task {
 	constructor(wrapper, description, id, isCompleted) {
 		this.id = id
@@ -49,12 +62,14 @@ class Task {
 	}
 
 	getWrapper(wrapper) {
-		this.task.append(this.remove, this.checkBox, this.checkBoxIcon, this.description)
+		this.task.append(this.checkBox, this.checkBoxIcon, this.description)
 		wrapper.className = 'task'
 		wrapper.setAttribute('data-task-id', this.id)
-		wrapper.append(this.task)
+		wrapper.append(this.remove, this.task)
+		wrapper.classList.add('flex', 'gap', 'center-h')
 		return wrapper
 	}
+
 
 	onRemove(event) {
 		if (event.target != this.remove) {
@@ -153,6 +168,7 @@ class UserTask extends Task {
 		wrapper.className = 'task'
 		wrapper.setAttribute('data-task-id', this.id)
 		wrapper.append(this.task)
+		wrapper.classList.add('flex', 'gap', 'center-h')
 		return wrapper
 	}
 
