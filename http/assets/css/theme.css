@@ -109,16 +109,15 @@ button {
 	gap: 1rem;
 }
 
+.gap-half {
+	gap: 0.5rem;
+}
+
 .item {
 	background-color: var(--antiflash-white);
 	border-radius: 1rem;
 	padding: 0 2rem;
 }
-
-/*.item:hover {*/
-/*	box-shadow: 0 2px 4px 0 rgba(0, 0, 0, .2);*/
-/*	cursor: pointer;*/
-/*}*/
 
 .col {
 	flex-direction: column;
@@ -137,13 +136,46 @@ button {
 	justify-content: center;
 }
 
+.baseline {
+	align-items: baseline;
+}
+
 .between-h {
 	justify-content: space-between;
 }
 
-input[type="text"]#name {
-	box-shadow: inset 1px 1px 3px #ccc;
-	border-radius: 5px;
+.form__input {
+	font-family: var(--font-regular);
+	color: #333;
+	font-size: 1.2rem;
+	margin: 0 auto;
+	padding: 1.5rem 2rem;
+	border-radius: 0.2rem;
+	background-color: rgb(255, 255, 255);
+	border: none;
+	width: 10rem;
+	display: block;
+	border-bottom: 0.3rem solid var(--robin-egg-blue);
+	transition: all 0.3s;
+}
+
+.form__input:focus {
+	border-bottom: 0.3rem solid transparent;
+}
+
+.form__input:placeholder-shown+.form__label {
+	opacity: 0;
+	visibility: hidden;
+	-webkit-transform: translateY(-4rem);
+	transform: translateY(-4rem);
+}
+
+.form__label {
+	font: var(--font-light);
+	font-size: 1.2rem;
+	display: block;
+	transition: all 0.3s;
+	transform: translateY(0rem);
 }
 
 input[type="text"].description {
@@ -156,7 +188,7 @@ input[type="text"].description {
 	font-size: 20px;
 	top: 20%;
 	position: relative;
-	width: 30%;
+	width: 80%;
 }
 
 .form input {
@@ -213,6 +245,11 @@ input[type="text"].description {
 .avatar.small {
 	width: 2rem;
 	height: 2rem;
+}
+
+.dropped {
+	background-color: var(--antiflash-white);
+	border-radius: 10px;
 }
 
 select {
@@ -284,20 +321,6 @@ button:disabled {
 button:focus {
 	box-shadow: rgba(50, 50, 93, .1) 0 0 0 1px inset, rgba(50, 50, 93, .2) 0 6px 15px 0, rgba(0, 0, 0, .1) 0 2px 2px 0, rgba(50, 151, 211, .3) 0 0 0 4px;
 }
-
-.btn-logout {
-	background-color: var(--melon);
-	color: var(--white);
-	border-radius: 4px;
-	border: none;
-}
-
-.btn-logout.a {
-	color: var(--white);
-	text-decoration: none;
-}
-
-
 
 .options-list {
 	padding: 0;
@@ -375,7 +398,7 @@ input[type="checkbox"]:checked~.checkbox__icon:before {
 	src: url("data:application/x-font-woff;charset=utf-8;base64,d09GRk9UVE8AAAR4AAoAAAAABDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABDRkYgAAAA9AAAAPgAAAD4fZUAVE9TLzIAAAHsAAAAYAAAAGAIIvy3Y21hcAAAAkwAAABMAAAATBpVzFhnYXNwAAACmAAAAAgAAAAIAAAAEGhlYWQAAAKgAAAANgAAADYAeswzaGhlYQAAAtgAAAAkAAAAJAPiAedobXR4AAAC/AAAABgAAAAYBQAAAG1heHAAAAMUAAAABgAAAAYABlAAbmFtZQAAAxwAAAE5AAABOUQYtNZwb3N0AAAEWAAAACAAAAAgAAMAAAEABAQAAQEBCGljb21vb24AAQIAAQA6+BwC+BsD+BgEHgoAGVP/i4seCgAZU/+LiwwHi2v4lPh0BR0AAAB8Dx0AAACBER0AAAAJHQAAAO8SAAcBAQgPERMWGyBpY29tb29uaWNvbW9vbnUwdTF1MjB1RTYwMHVFNjAxAAACAYkABAAGAQEEBwoNL2X8lA78lA78lA77lA6L+HQVi/yU+JSLi/iU/JSLBd83Fffsi4v77Pvsi4v37AUOi/h0FYv8lPiUi4v33zc3i/s3++yLi/fs9zeL398F9wCFFftN+05JzUdI9xr7GveR95FHzwUO+JQU+JQViwwKAAMCAAGQAAUAAAFMAWYAAABHAUwBZgAAAPUAGQCEAAAAAAAAAAAAAAAAAAAAARAAAAAAAAAAAAAAAAAAAAAAQAAA5gEB4P/g/+AB4AAgAAAAAQAAAAAAAAAAAAAAIAAAAAAAAgAAAAMAAAAUAAMAAQAAABQABAA4AAAACgAIAAIAAgABACDmAf/9//8AAAAAACDmAP/9//8AAf/jGgQAAwABAAAAAAAAAAAAAAABAAH//wAPAAEAAAAAAACkYCfgXw889QALAgAAAAAAz65FuwAAAADPrkW7AAD/4AIAAeAAAAAIAAIAAAAAAAAAAQAAAeD/4AAAAgAAAAAAAgAAAQAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAABAAAAAgAAAAIAAAAAAFAAAAYAAAAAAA4ArgABAAAAAAABAA4AAAABAAAAAAACAA4ARwABAAAAAAADAA4AJAABAAAAAAAEAA4AVQABAAAAAAAFABYADgABAAAAAAAGAAcAMgABAAAAAAAKACgAYwADAAEECQABAA4AAAADAAEECQACAA4ARwADAAEECQADAA4AJAADAAEECQAEAA4AVQADAAEECQAFABYADgADAAEECQAGAA4AOQADAAEECQAKACgAYwBpAGMAbwBtAG8AbwBuAFYAZQByAHMAaQBvAG4AIAAxAC4AMABpAGMAbwBtAG8AbwBuaWNvbW9vbgBpAGMAbwBtAG8AbwBuAFIAZQBnAHUAbABhAHIAaQBjAG8AbQBvAG8AbgBHAGUAbgBlAHIAYQB0AGUAZAAgAGIAeQAgAEkAYwBvAE0AbwBvAG4AAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==") format("woff");
 }
 
-.cross {
+.plus {
 	--b: 2px;
 	/* the thickness*/
 	--c: #0000 90deg, #000 0;
@@ -383,9 +406,30 @@ input[type="checkbox"]:checked~.checkbox__icon:before {
 	width: 1rem;
 	/* the size */
 	aspect-ratio: 1;
-	transform: rotate(45deg);
 	background:
 		conic-gradient(from 90deg at var(--b) var(--b), var(--c)) calc(100% + var(--b)/2) calc(100% + var(--b)/2)/ calc(50% + var(--b)) calc(50% + var(--b));
+}
+
+.plus:hover {
+	--c: #0000 90deg, var(--emerald) 0;
+	--b: 5px;
+}
+
+.cross {
+	--b: 2px;
+	/* the thickness*/
+	--c: #0000 90deg, #000 0;
+	/* the coloration */
+	width: 1rem;
+	/* the size */
+	transform: rotate(45deg);
+	aspect-ratio: 1;
+	background:
+		conic-gradient(from 90deg at var(--b) var(--b), var(--c)) calc(100% + var(--b)/2) calc(100% + var(--b)/2)/ calc(50% + var(--b)) calc(50% + var(--b));
+}
+
+.cross.thin {
+	--b: 1.6px;
 }
 
 .cross:hover {
