@@ -41,27 +41,65 @@ tasksPane.addEventListener('escape-task', function(event) {
 })
 
 tasksPane.addEventListener('add-task', function(event) {
-	let li = document.createElement('li')
-
 	if (isAdmin == 'true') {
-		new Task(li, event.detail.description, event.detail.id, event.detail.isCompleted)
+		new Task(event.detail.elem, event.detail.description, event.detail.id, event.detail.isCompleted)
 	} else {
-		new UserTask(li, event.detail.description, event.detail.id, event.detail.isCompleted)
+		new UserTask(event.detail.elem, event.detail.description, event.detail.id, event.detail.isCompleted)
 	}
+
+	event.detail.elem.classList.add('droppable')
+	event.detail.elem.addEventListener('attach-contributor', onAttachContriubutor)
 
 	if (event.target.hidden) {
 		event.target.hidden = false
 	}
-	event.target.append(li)
+
+	event.target.append(event.detail.elem)
 })
 
 conributorsPane.addEventListener('add-contributor', function(event) {
-	let li = document.createElement('li')
+	new Contributor(event.detail.elem, event.detail.name, event.detail.avatarURL, event.detail.id)
 
-	new Contributor(li, event.detail.name, event.detail.avatarURL, event.detail.id)
+	let dropEvent = new CustomEvent('attach-contributor', {
+		bubbles: false,
+		detail: {
+			id: event.detail.id,
+			name: event.detail.name,
+			avatarURL: event.detail.avatarURL,
+		},
 
-	event.target.append(li)
+	})
+
+	new Draggable(event.detail.elem, true, dropEvent)
+	event.detail.elem.classList.add('draggable')
+
+	event.target.append(event.detail.elem)
 })
+
+function onAttachContriubutor(event) {
+	if (event.target.querySelector(`.dropped[data-contributor-id="${event.detail.id}"]`)) {
+		event.preventDefault()
+		return false
+	}
+
+	const elem = document.createElement('div')
+	const name = document.createElement('div')
+	name.innerHTML = event.detail.name
+	name.style.padding = 0
+	elem.classList.add('dropped', 'inline-flex', 'center-h', 'gap-half')
+	elem.style.padding = 0.5 + 'rem'
+	elem.dataset.contributorId = event.detail.id
+
+	let removeElem = document.createElement('div')
+	removeElem.classList.add('cross', 'thin')
+	removeElem.style.width = 0.75 + 'rem'
+	removeElem.onclick = () => {
+		elem.remove()
+	}
+
+	elem.append(removeElem, name)
+	event.target.append(elem)
+}
 
 if (isAdmin == 'true') {
 	addTaskButton.onclick = () => {
