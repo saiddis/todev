@@ -2,12 +2,12 @@ class Contributor {
 	constructor(wrapper, name, avatarURL, id) {
 		this.id = id
 
-		this.contributor = this.getContributorElement()
+		this.elem = this.getContributorElement()
 		this.name = this.getNameElement(name)
 		this.avatar = this.getAvatarElement(avatarURL)
 		this.wrapper = this.getWrapperElement(wrapper)
 
-		this.contributor.ondragstart = function() {
+		this.elem.ondragstart = function() {
 			return false
 		}
 	}
@@ -27,13 +27,13 @@ class Contributor {
 
 	getContributorElement() {
 		let div = document.createElement('div')
-		div.classList.add('flex', 'center-h', 'gap')
+		div.classList.add('inline-flex', 'center-h', 'gap')
 		return div
 	}
 
 	getWrapperElement(wrapper) {
-		this.contributor.append(this.avatar, this.name)
-		wrapper.append(this.contributor)
+		this.elem.append(this.avatar, this.name)
+		wrapper.append(this.elem)
 		return wrapper
 	}
 }

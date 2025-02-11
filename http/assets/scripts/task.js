@@ -2,7 +2,7 @@ class Task {
 	constructor(wrapper, description, id, isCompleted) {
 		this.id = id
 
-		this.task = this.getTaskElement()
+		this.elem = this.getTaskElement()
 		this.remove = this.getRemoveElement()
 		this.checkBox = this.getCheckBoxElement()
 		this.checkBoxIcon = this.getCheckBoxIconElement()
@@ -49,10 +49,10 @@ class Task {
 	}
 
 	getWrapper(wrapper) {
-		this.task.append(this.checkBox, this.checkBoxIcon, this.description)
-		wrapper.className = 'task'
-		wrapper.setAttribute('data-task-id', this.id)
-		wrapper.append(this.remove, this.task)
+		this.elem.append(this.checkBox, this.checkBoxIcon, this.description)
+		wrapper.className = 'elem'
+		wrapper.setAttribute('data-elem-id', this.id)
+		wrapper.append(this.remove, this.elem)
 		wrapper.classList.add('flex', 'gap', 'center-h')
 		return wrapper
 	}
@@ -84,7 +84,7 @@ class Task {
 			return false
 		} else if (!this.description.value.trim()) {
 			this.description.focus()
-			return false; // prevent from adding the task to the .completed-task-list
+			return false; // prevent from adding the elem to the .completed-elem-list
 		}
 
 		changeDescription(this.id, this.description.value).
@@ -104,7 +104,7 @@ class Task {
 			return false
 		} else if (!this.description.value.trim()) { // if its input is empty
 			this.description.focus()
-			return false; // prevent from adding the task to the .completed-task-list
+			return false; // prevent from adding the elem to the .completed-elem-list
 		}
 
 		toggleCompletion(this.id).
@@ -131,7 +131,7 @@ class Task {
 }
 
 
-class UserTask extends Task {
+class Userelem extends Task {
 	getDescriptionElement(value) {
 		let input = document.createElement('input')
 		input.className = 'description'
@@ -151,16 +151,16 @@ class UserTask extends Task {
 	}
 
 	getWrapper(wrapper) {
-		this.task.append(this.checkBox, this.checkBoxIcon, this.description)
+		this.elem.append(this.checkBox, this.checkBoxIcon, this.description)
 		wrapper.className = 'task'
 		wrapper.setAttribute('data-task-id', this.id)
-		wrapper.append(this.task)
+		wrapper.append(this.elem)
 		wrapper.classList.add('flex', 'gap', 'center-h')
 		return wrapper
 	}
 
 	onCheckBox() {
-		this.wrapper.dispatchEvent(new CustomEvent('escape-task', {
+		this.wrapper.dispatchEvent(new CustomEvent('escape-elem', {
 			bubbles: true,
 			detail: {
 				remove: false,
@@ -178,10 +178,10 @@ class UserTask extends Task {
 
 }
 
-async function deleteTask(taskID) {
+async function deleteTask(elemID) {
 	try {
 
-		let resp = await fetch('/tasks/' + taskID, {
+		let resp = await fetch('/tasks/' + elemID, {
 			method: 'DELETE',
 			headers: {
 				'Content-type': 'application/json',
@@ -199,10 +199,10 @@ async function deleteTask(taskID) {
 	}
 }
 
-async function toggleCompletion(taskID) {
+async function toggleCompletion(elemID) {
 	try {
 
-		let resp = await fetch('/tasks/' + taskID, {
+		let resp = await fetch('/tasks/' + elemID, {
 			method: 'PATCH',
 			headers: {
 				'Content-Type': 'application/json',
@@ -222,9 +222,9 @@ async function toggleCompletion(taskID) {
 	}
 }
 
-async function changeDescription(taskID, value) {
+async function changeDescription(elemID, value) {
 	try {
-		let resp = await fetch('/tasks/' + taskID, {
+		let resp = await fetch('/tasks/' + elemID, {
 			method: 'PATCH',
 			headers: {
 				'Content-Type': 'application/json',
@@ -235,8 +235,8 @@ async function changeDescription(taskID, value) {
 			}),
 		})
 		if (resp.ok) {
-			let task = resp.json()
-			return task.description
+			let elem = resp.json()
+			return elem.description
 		}
 		return ""
 	} catch (err) {
