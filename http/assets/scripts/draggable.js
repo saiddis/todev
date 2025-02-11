@@ -59,11 +59,10 @@ class Draggable {
 			if (currentDroppable) {
 				draggable.remove()
 				currentDroppable.dispatchEvent(this.dropEvent)
-			} else {
-				draggable.remove()
+				this.leaveDroppable(currentDroppable)
 			}
 
-			this.leaveDroppable(currentDroppable)
+			draggable.remove()
 		}
 
 		draggable.ondragstart = function() {
