@@ -58,10 +58,10 @@ tasksPane.addEventListener('add-task', function(event) {
 })
 
 conributorsPane.addEventListener('add-contributor', function(event) {
-	new Contributor(event.detail.elem, event.detail.name, event.detail.avatarURL, event.detail.id)
+	const contributor = new Contributor(event.detail.elem, event.detail.name, event.detail.avatarURL, event.detail.id)
 
 	let dropEvent = new CustomEvent('attach-contributor', {
-		bubbles: false,
+		bubbles: true,
 		detail: {
 			id: event.detail.id,
 			name: event.detail.name,
@@ -70,7 +70,7 @@ conributorsPane.addEventListener('add-contributor', function(event) {
 
 	})
 
-	new Draggable(event.detail.elem, true, dropEvent)
+	new Draggable(contributor.elem, true, dropEvent)
 	event.detail.elem.classList.add('draggable')
 
 	event.target.append(event.detail.elem)
@@ -83,21 +83,19 @@ function onAttachContriubutor(event) {
 	}
 
 	const elem = document.createElement('div')
-	const name = document.createElement('div')
-	name.innerHTML = event.detail.name
-	name.style.padding = 0
 	elem.classList.add('dropped', 'inline-flex', 'center-h', 'gap-half')
-	elem.style.padding = 0.5 + 'rem'
+	elem.style.padding = 0.3 + 'rem'
 	elem.dataset.contributorId = event.detail.id
 
 	let removeElem = document.createElement('div')
-	removeElem.classList.add('cross', 'thin')
-	removeElem.style.width = 0.75 + 'rem'
+	removeElem.className = 'cross'
+	removeElem.style.width = 1 + 'rem'
+	removeElem.style.height = 1 + 'rem'
 	removeElem.onclick = () => {
 		elem.remove()
 	}
 
-	elem.append(removeElem, name)
+	elem.append(removeElem, event.detail.name)
 	event.target.append(elem)
 }
 
@@ -108,11 +106,8 @@ if (isAdmin == 'true') {
 }
 
 function addTask() {
-	const li = document.createElement('li')
-	li.classList.add('flex', 'center-h')
 	const input = document.createElement('input')
-	li.append(input)
-	tasksList.append(li)
+	tasksList.append(input)
 
 	input.focus()
 	input.onblur = async () => {
@@ -123,9 +118,18 @@ function addTask() {
 		let task = await createTask(input.value)
 		if (task) {
 			input.remove()
-			new Task(li, task.description, task.id, false)
+			tasksList.dispatchEvent(new CustomEvent('add-task', {
+				bubbles: true,
+				detail: {
+					elem: document.createElement('li'),
+					description: task.description,
+					isCompleted: false,
+					id: task.id,
+				}
+			}))
 		}
 	}
+
 }
 
 async function createTask(description) {
