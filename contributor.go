@@ -81,6 +81,7 @@ type ContributorFilter struct {
 	ID     *int `json:"id"`
 	RepoID *int `json:"dialID"`
 	UserID *int `json:"userID"`
+	TaskID *int `json:"taskID"`
 
 	// Restricts to a subset of results.
 	Offset int `json:"offset"`
