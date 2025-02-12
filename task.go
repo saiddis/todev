@@ -27,7 +27,7 @@ type Task struct {
 	OwnerID int `json:"ownerID"`
 
 	// ID of a contributor to whome the task was given (optional).
-	ContributorID *int `json:"conributorID"`
+	ContributorIDs []int `json:"conributorIDs"`
 
 	ID int `json:"id"`
 
