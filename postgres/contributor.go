@@ -125,7 +125,6 @@ func (s *ContributorService) FindContributorByID(ctx context.Context, id int) (*
 	return contributor, nil
 }
 
-// TODO: Devise logic for updating it through TaskService.
 func (s *ContributorService) UpdateContributor(ctx context.Context, id int, upd todev.ContributorUpdate) (*todev.Contributor, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -214,14 +213,6 @@ func createSelfContributor(ctx context.Context, tx *Tx, repo *todev.Repo) (err e
 		return fmt.Errorf("error creating contributor: %w", err)
 	}
 	repo.Contributors = append(repo.Contributors, &contributor)
-	// else if err = tx.conn.EventService.PublishEvent(contributor.RepoID, todev.Event{
-	// 	Type: todev.EventTypeContributorAdded,
-	// 	Payload: todev.ContributorAdded{
-	// 		Contributor: &contributor,
-	// 	},
-	// }); err != nil {
-	// 	return fmt.Errorf("error publishing event: %w", err)
-	// }
 
 	return nil
 }
@@ -279,6 +270,10 @@ func findContributors(ctx context.Context, tx *Tx, filter todev.ContributorFilte
 		argIndex++
 		where, args = append(where, fmt.Sprintf("c.repo_id = $%d", argIndex)), append(args, *v)
 	}
+	if v := filter.TaskID; v != nil {
+		argIndex++
+		where, args = append(where, fmt.Sprintf("tc.task_id = $%d", argIndex)), append(args, *v)
+	}
 	if v := filter.UserID; v != nil {
 		argIndex++
 		where, args = append(where, fmt.Sprintf("c.user_id = $%d", argIndex)), append(args, *v)
@@ -317,6 +312,7 @@ func findContributors(ctx context.Context, tx *Tx, filter todev.ContributorFilte
 		FROM contributors c
 		JOIN repos r ON c.repo_id = r.id
 		JOIN users u ON c.user_id = u.id
+		LEFT JOIN tasks_contributors tc on c.id = tc.contributor_id
 		WHERE `+strings.Join(where, " AND ")+`
 		GROUP BY c.id, r.user_id, u.name
 		ORDER BY `+sortBy+`

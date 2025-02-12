@@ -39,9 +39,18 @@ func (s *TaskService) CreateTask(ctx context.Context, task *todev.Task) error {
 
 	if err = createTask(ctx, tx, task); err != nil {
 		return err
-	} else if attachTaskAssociations(ctx, tx, task); err != nil {
+	} else if err = createTaskContributors(ctx, tx, task); err != nil {
 		return err
-	} else if task.OwnerID != todev.UserIDFromContext(ctx) {
+	}
+
+	repo, err := findRepoByID(ctx, tx, task.RepoID)
+	if err != nil {
+		return fmt.Errorf("error attaching task repo: %w", err)
+	}
+
+	task.OwnerID = repo.UserID
+
+	if task.OwnerID != todev.UserIDFromContext(ctx) {
 		return todev.Errorf(todev.ECONFLICT, "Only repo owner can create tasks.")
 	} else if err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
 		Type: todev.EventTypeTaskAdded,
@@ -188,11 +197,6 @@ func createTask(ctx context.Context, tx *Tx, task *todev.Task) (err error) {
 	insertQuery := []string{"description", "repo_id", "created_at", "updated_at"}
 	valuesQuery := []string{"$1", "$2", "$3", "$4"}
 
-	if task.ContributorID != nil {
-		args = append(args, task.ContributorID)
-		insertQuery = append(insertQuery, "contributor_id")
-		valuesQuery = append(valuesQuery, "$5")
-	}
 	var id int
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO tasks (`+strings.Join(insertQuery, ",")+`)
@@ -203,9 +207,60 @@ func createTask(ctx context.Context, tx *Tx, task *todev.Task) (err error) {
 	).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("error scanning: %w", err)
+
 	}
 
 	task.ID = id
+
+	return nil
+}
+
+func createTaskContributors(ctx context.Context, tx *Tx, task *todev.Task) error {
+	contributors, n, err := findContributors(ctx, tx, todev.ContributorFilter{RepoID: &task.RepoID})
+	if err != nil {
+		return fmt.Errorf("error retrieving contributors by repo ID: %v", err)
+	} else if len(contributors) == 0 {
+		return todev.Errorf(todev.ECONFLICT, "Only repo owner can create tasks.")
+	}
+	values := new(strings.Builder)
+	values.Grow(n)
+	var value string
+
+	argN := 1
+	args := make([]interface{}, n*2)
+
+	task.ContributorIDs = make([]int, n)
+	var contributorID int
+
+	for i := 0; i < n; i++ {
+		if i != n-1 {
+			value = fmt.Sprintf("($%d, $%d),", argN, argN+1)
+		} else {
+			value = fmt.Sprintf("($%d, $%d)", argN, argN+1)
+		}
+		if _, err = values.WriteString(value); err != nil {
+			return fmt.Errorf("error building query: %v", err)
+		}
+
+		contributorID = contributors[i].ID
+		args[argN-1], args[argN] = task.ID, contributorID
+		task.ContributorIDs[i] = contributorID
+
+		argN += 2
+	}
+
+	query := fmt.Sprintf(`
+		INSERT INTO tasks_contributors (task_id, contributor_id)
+		VALUES %s`, values.String())
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("error preparing query: %v", err)
+	}
+
+	if _, err = stmt.ExecContext(ctx, args...); err != nil {
+		return fmt.Errorf("error inserting task contributors: %v", err)
+	}
 
 	return nil
 }
@@ -234,7 +289,7 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 	}
 	if v := filter.ContributorID; v != nil {
 		argIndex++
-		where, args = append(where, fmt.Sprintf("t.contributor_id = $%d", argIndex)), append(args, *v)
+		where, args = append(where, fmt.Sprintf("tc.contributor_id = $%d", argIndex)), append(args, *v)
 	}
 	if v := filter.IsCompleted; v != nil {
 		argIndex++
@@ -263,7 +318,6 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 		SELECT
 			t.id,
 			t.repo_id,
-			t.contributor_id,
 			t.is_completed,
 			t.description,
 			t.created_at,
@@ -271,6 +325,7 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 			COUNT(*) OVER()
 		FROM tasks t
 		JOIN repos r ON t.repo_id = r.id
+		JOIN tasks_contributors tc ON t.id = tc.task_id
 		WHERE `+strings.Join(where, " AND ")+`
 		GROUP BY t.id
 		ORDER BY `+sortBy+`
@@ -299,7 +354,6 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 		if err = rows.Scan(
 			&task.ID,
 			&task.RepoID,
-			&task.ContributorID,
 			&task.IsCompleted,
 			&task.Description,
 			&task.CreatedAt,
@@ -340,7 +394,23 @@ func updateTask(ctx context.Context, tx *Tx, id int, upd todev.TaskUpdate) (_ *t
 				})
 			}
 		}()
-		task.ContributorID = v
+		for i, contributorID := range task.ContributorIDs {
+			if contributorID == *v {
+				if _, err = tx.ExecContext(ctx, "DELETE FROM tasks_contributors where task_id = $1 AND contributor_id != $2", id, contributorID); err != nil {
+					return nil, fmt.Errorf("error deleting task contributors: %v", err)
+				}
+				task.ContributorIDs = []int{*v}
+				break
+			}
+
+			if i == len(task.ContributorIDs)-1 {
+				if _, err = tx.ExecContext(ctx, "INSERT INTO tasks_contributors(task_id, contributor_id) VALUES($1, $2)", id, *v); err != nil {
+					return nil, fmt.Errorf("error inserting task contributor: %v", err)
+				}
+				task.ContributorIDs = append(task.ContributorIDs, *v)
+			}
+		}
+
 	}
 	if v := upd.Description; v != nil {
 		defer func() {
@@ -384,11 +454,6 @@ func updateTask(ctx context.Context, tx *Tx, id int, upd todev.TaskUpdate) (_ *t
 	}
 	idArgIndex := "5;"
 	updateQuery := []string{"description = $1", "repo_id = $2", "is_completed = $3", "updated_at = $4"}
-	if task.ContributorID != nil {
-		args = append(args, *task.ContributorID)
-		updateQuery = append(updateQuery, "contributor_id = $5")
-		idArgIndex = "6;"
-	}
 	args = append(args, id)
 
 	_, err = tx.ExecContext(ctx, `
@@ -433,5 +498,14 @@ func attachTaskAssociations(ctx context.Context, tx *Tx, task *todev.Task) (err 
 		return fmt.Errorf("error attaching task repo: %w", err)
 	}
 	task.OwnerID = repo.UserID
+
+	contributors, n, err := findContributors(ctx, tx, todev.ContributorFilter{TaskID: &task.ID})
+	if err != nil {
+		return fmt.Errorf("error attaching task contributor IDs: %v", err)
+	}
+	task.ContributorIDs = make([]int, 0, n)
+	for _, contributor := range contributors {
+		task.ContributorIDs = append(task.ContributorIDs, contributor.ID)
+	}
 	return nil
 }
