@@ -35,8 +35,6 @@ func TestContributorService_FindContributors(t *testing.T) {
 	})
 }
 
-// TODO: Test UpdateContributor function
-
 func TestContributorService_UpdateContributor(t *testing.T) {
 	t.Run("OK", func(t *testing.T) {
 	})
