@@ -4,15 +4,16 @@ import "context"
 
 // Event type constants.
 const (
-	EventTypeTaskAdded                = "task:added"
-	EventTypeTaskCompletionToggled    = "task:completion_toggled"
-	EventTypeTaskDescriptionChanged   = "task:description_changed"
-	EventTypeTaskContributorIDChanged = "task:contributor_id_changed"
-	EventTypeTaskDeleted              = "task:deleted"
-	EventTypeContributorAdded         = "contributor:added"
-	EventTypeContributorSetAdmin      = "contributor:set_admin"
-	EventTypeContributorResetAdmin    = "contributor:reset_admin"
-	EventTypeContributorDeleted       = "contributor:deleted"
+	EventTypeTaskAdded               = "task:added"
+	EventTypeTaskCompletionToggled   = "task:completion_toggled"
+	EventTypeTaskDescriptionChanged  = "task:description_changed"
+	EventTypeTaskAttachContributor   = "task:attach_contributor"
+	EventTypeTaskUnattachContributor = "task:unattach_contributor"
+	EventTypeTaskDeleted             = "task:deleted"
+	EventTypeContributorAdded        = "contributor:added"
+	EventTypeContributorSetAdmin     = "contributor:set_admin"
+	EventTypeContributorResetAdmin   = "contributor:reset_admin"
+	EventTypeContributorDeleted      = "contributor:deleted"
 )
 
 // Event represents an event that occurs in the system.
@@ -58,6 +59,20 @@ type TaskAdded struct {
 // opposite of the current one.
 type TaskCompletionToggled struct {
 	ID int `json:"id"`
+}
+
+// TaskContributorAttached represents a payload for an event and
+// is due to attach a contributor ID into the task for the given task ID.
+type TaskContributorAttached struct {
+	ContributorID int `json:"contributorID"`
+	TaskID        int `json:"taskID"`
+}
+
+// TaskContributorAttached represents a payload for an event and
+// is due to unattach a contributor ID into the task for the given task ID.
+type TaskContributorUnattached struct {
+	ContributorID int `json:"contributorID"`
+	TaskID        int `json:"taskID"`
 }
 
 // RepoTaskDescriptionChanged represents a payload for an event and
