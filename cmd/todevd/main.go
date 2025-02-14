@@ -21,7 +21,7 @@ import (
 
 const (
 	// DefaultConfigPath is the default path to the application configuration.
-	DefaultConfigPath = "../../config.yaml"
+	DefaultConfigPath = "~/todev/config.yaml"
 )
 
 // Build version, injected during build.
