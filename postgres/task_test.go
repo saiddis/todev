@@ -23,10 +23,6 @@ func TestTaskService_CreateTask(t *testing.T) {
 }
 
 func TestTaskService_FindTasks(t *testing.T) {
-	// t.Run("ByContributorID", func(t *testing.T) {
-	// 	WithSchema(t, findTasks_ByContributorID)
-	// })
-
 	t.Run("ByRepoID", func(t *testing.T) {
 		WithSchema(t, findTasks_ByRepoID)
 	})
@@ -41,6 +37,10 @@ func TestTaskService_FindTaskByID(t *testing.T) {
 func TestTaskService_UpdateTask(t *testing.T) {
 	t.Run("OK", func(t *testing.T) {
 		WithSchema(t, updateTask_OK)
+	})
+
+	t.Run("Unattach contributor", func(t *testing.T) {
+		WithSchema(t, updateTask_UnattachContributor)
 	})
 
 	t.Run("Errors", func(t *testing.T) {
@@ -86,10 +86,7 @@ func updateTask_OK(t testing.TB, conn *postgres.Conn) {
 
 	ctx := context.Background()
 	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
-	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
 	repo0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
-
-	contributor1 := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo0.ID})
 
 	task := MustCreateTask(t, ctx0, conn, &todev.Task{Description: "Do some stuff.", RepoID: repo0.ID})
 
@@ -97,7 +94,6 @@ func updateTask_OK(t testing.TB, conn *postgres.Conn) {
 	toggleCompletion := true
 	if task, err := s.UpdateTask(ctx0, task.ID, todev.TaskUpdate{
 		Description:      &description,
-		ContributorID:    &contributor1.ID,
 		ToggleCompletion: toggleCompletion,
 	}); err != nil {
 		t.Fatal(err)
@@ -105,15 +101,77 @@ func updateTask_OK(t testing.TB, conn *postgres.Conn) {
 		t.Fatal(err)
 	} else if got, want := other.Description, description; got != want {
 		t.Fatalf("Description: %s, want %s", got, want)
-	} else if got, want := len(other.ContributorIDs), 1; got != want {
-		t.Fatalf("contributors length: %d, want %d", got, want)
-	} else if got, want := other.ContributorIDs[0], contributor1.ID; got != want {
-		t.Fatalf("ContributorID: %d, want %d", got, want)
 	} else if got, want := other.IsCompleted, true; got != want {
 		t.Fatalf("IsComleted: %v, want %v", got, want)
 	} else if !reflect.DeepEqual(task, other) {
 		t.Fatalf("mismatch: %#v !=\n%#v", task, other)
 	}
+}
+
+func updateTask_AttachContributor(t testing.TB, conn *postgres.Conn) {
+	s := postgres.NewTaskService(conn)
+
+	ctx := context.Background()
+	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
+	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
+	_, ctx2 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
+	repo0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+
+	contributor1 := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo0.ID})
+	contributor2 := MustCreateContributor(t, ctx2, conn, &todev.Contributor{RepoID: repo0.ID})
+
+	task := MustCreateTask(t, ctx0, conn, &todev.Task{Description: "Do some stuff.", RepoID: repo0.ID})
+
+	if err := s.AttachContributor(ctx0, task, contributor1.ID); err != nil {
+		t.Fatal(err)
+	} else if got, want := len(task.ContributorIDs), 1; got != want {
+		t.Fatalf("ContributorIDs=%d, want %d", got, want)
+	} else if got, want := task.ContributorIDs[0], repo0.Contributors[0].ID; got != want {
+		t.Fatalf("contributor ID=%d, want %d", got, want)
+	}
+
+	if err := s.AttachContributor(ctx0, task, contributor2.ID); err != nil {
+		t.Fatal(err)
+	} else if got, want := len(task.ContributorIDs), 2; got != want {
+		t.Fatalf("contributor ID=%d, want %d", got, want)
+	} else if got, want := task.ContributorIDs[1], repo0.Contributors[1].ID; got != want {
+		t.Fatalf("contributor ID=%d, want %d", got, want)
+	}
+
+	if otherTask, err := s.FindTaskByID(ctx0, task.ID); err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(task, otherTask) {
+		t.Fatalf("mismatch: %#v != %#v", task, otherTask)
+	}
+}
+
+func updateTask_UnattachContributor(t testing.TB, conn *postgres.Conn) {
+	s := postgres.NewTaskService(conn)
+
+	ctx := context.Background()
+	_, ctx0 := MustCreateUser(t, ctx, conn, &todev.User{Name: "bob", Email: "bob@gmail.com"})
+	_, ctx1 := MustCreateUser(t, ctx, conn, &todev.User{Name: "judy", Email: "judy@gmail.com"})
+	repo0 := MustCreateRepo(t, ctx0, conn, &todev.Repo{Name: "repo1"})
+
+	contributor1 := MustCreateContributor(t, ctx1, conn, &todev.Contributor{RepoID: repo0.ID})
+
+	task := MustCreateTask(t, ctx0, conn, &todev.Task{Description: "Do some stuff.", RepoID: repo0.ID})
+
+	if err := s.UnattachContributor(ctx0, task, contributor1.ID); err != nil {
+		t.Fatal(err)
+	} else if got, want := len(task.ContributorIDs), 1; got != want {
+		t.Fatalf("ContributorIDs length=%d, want %d", got, want)
+	} else if got, want := task.ContributorIDs[0], repo0.Contributors[0].ID; got != want {
+		t.Fatalf("contributor ID=%d, want %d", got, want)
+	}
+
+	otherTask, err := s.FindTaskByID(ctx0, task.ID)
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(task, otherTask) {
+		t.Fatalf("mismatch: %#v != %#v", task, otherTask)
+	}
+
 }
 
 func updateTask_Errors(t *testing.T, conn *postgres.Conn) {
