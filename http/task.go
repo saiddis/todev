@@ -24,6 +24,11 @@ func (s *Server) registerTaskRoutes(r *mux.Router) {
 	// Delete task
 	r.HandleFunc("/tasks/{id}", s.handleTaskDelete).Methods("DELETE")
 
+	// Attach contributor.
+	r.HandleFunc("/tasks/{taskID}/contributor{contributorID}", s.handleTaskAttachContributor).Methods("POST")
+
+	// Unattach contributor.
+	r.HandleFunc("/tasks/{taskID}/contributor{contributorID}", s.handleTaskUnattachContributor).Methods("DELETE")
 }
 
 // handleTaskRepoView handles the "GET /tasks" route. This route retrieves all
@@ -71,11 +76,6 @@ func (s *Server) handleTaskCreate(w http.ResponseWriter, r *http.Request) {
 		}()
 	default:
 		task.Description = r.PostFormValue("description")
-		if contributorID := r.PostFormValue("contributorID"); contributorID != "" {
-			if id, err := strconv.Atoi(contributorID); err != nil {
-				task.ContributorID = &id
-			}
-		}
 	}
 
 	err := s.TaskService.CreateTask(r.Context(), &task)
@@ -139,6 +139,58 @@ func (s *Server) handleTaskDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if err = json.Encode("{}", w); err != nil {
 		Error(w, r, fmt.Errorf("error writing response: %v", err))
+		return
+	}
+}
+
+func (s *Server) handleTaskAttachContributor(w http.ResponseWriter, r *http.Request) {
+	taskID, err := strconv.Atoi(mux.Vars(r)["taskID"])
+	if err != nil {
+		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid ID format"))
+		return
+	}
+	contributorID, err := strconv.Atoi(mux.Vars(r)["contributorID"])
+	if err != nil {
+		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid ID format"))
+		return
+	}
+
+	r.Header.Set("Accept", "application/json")
+
+	if task, err := s.TaskService.FindTaskByID(r.Context(), taskID); err != nil {
+		Error(w, r, fmt.Errorf("error deleting task by ID=%d: %v", taskID, err))
+		return
+	} else if err = s.TaskService.AttachContributor(r.Context(), task, contributorID); err != nil {
+		Error(w, r, fmt.Errorf("error contributor ID for task with ID=%d: %v", taskID, err))
+		return
+	} else if err = json.Encode(task, w); err != nil {
+		LogError(r, err)
+		return
+	}
+}
+
+func (s *Server) handleTaskUnattachContributor(w http.ResponseWriter, r *http.Request) {
+	taskID, err := strconv.Atoi(mux.Vars(r)["taskID"])
+	if err != nil {
+		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid ID format"))
+		return
+	}
+	contributorID, err := strconv.Atoi(mux.Vars(r)["contributorID"])
+	if err != nil {
+		Error(w, r, todev.Errorf(todev.EINVALID, "Invalid ID format"))
+		return
+	}
+
+	r.Header.Set("Accept", "application/json")
+
+	if task, err := s.TaskService.FindTaskByID(r.Context(), taskID); err != nil {
+		Error(w, r, fmt.Errorf("error deleting task by ID=%d: %v", taskID, err))
+		return
+	} else if err = s.TaskService.UnattachContributor(r.Context(), task, contributorID); err != nil {
+		Error(w, r, fmt.Errorf("error contributor ID for task with ID=%d: %v", taskID, err))
+		return
+	} else if err = json.Encode(task, w); err != nil {
+		LogError(r, err)
 		return
 	}
 }

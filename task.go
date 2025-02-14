@@ -74,6 +74,12 @@ type TaskService interface {
 
 	// Permanently deletes a taks by ID. Only the repo owner can delete a task.
 	DeleteTask(ctx context.Context, id int) error
+
+	// Give a specific contributor a task by attaching contributorID on task.
+	AttachContributor(ctx context.Context, task *Task, contributorID int) error
+
+	// Take a task from a specific contributor a task by unattaching contributorID from task.
+	UnattachContributor(ctx context.Context, task *Task, contributorID int) error
 }
 
 // TaskFilter represents a filter used by FindTasks().
@@ -95,6 +101,5 @@ type TaskFilter struct {
 // TaskUpdate represents a set of fields to update on a task.
 type TaskUpdate struct {
 	Description      *string `json:"description"`
-	ContributorID    *int    `json:"contributorID"`
 	ToggleCompletion bool    `json:"toggleCompletion"`
 }
