@@ -50,8 +50,8 @@ class Task {
 
 	getWrapper(wrapper) {
 		this.elem.append(this.checkBox, this.checkBoxIcon, this.description)
-		wrapper.className = 'elem'
-		wrapper.setAttribute('data-elem-id', this.id)
+		wrapper.className = 'task'
+		wrapper.setAttribute('data-task-id', this.id)
 		wrapper.append(this.remove, this.elem)
 		wrapper.classList.add('flex', 'gap', 'center-h')
 		return wrapper

@@ -33,6 +33,8 @@ class Contributor {
 
 	getWrapperElement(wrapper) {
 		this.elem.append(this.avatar, this.name)
+		wrapper.className = 'contributor'
+		wrapper.setAttribute('data-contributor-id', this.id)
 		wrapper.append(this.elem)
 		return wrapper
 	}
