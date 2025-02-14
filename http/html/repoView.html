@@ -24,42 +24,46 @@
 			</ul>
 		</div>
 	</div>
-	{{range $contributor := .Repo.Contributors}}
+	{{$contributors := .Repo.Contributors}}
+	{{range $contributor := $contributors}}
 	<script>
-		window.addEventListener('load', function () {
-			document.getElementById('contributors-list').
-				dispatchEvent(new CustomEvent('add-contributor', {
-					bubbles: true,
-					detail: {
-						elem: document.createElement('li'),
-						name: "{{$contributor.User.Name}}",
-						avatarURL: "{{$contributor.User.AvatarURL}}",
-						id: "{{$contributor.ID}}",
-					}
-				}))
-		})
+		function addContributor() {
+			contributorsList.dispatchEvent(new CustomEvent('add-contributor', {
+				bubbles: true,
+				detail: {
+					elem: document.createElement('li'),
+					name: "{{$contributor.User.Name}}",
+					avatarURL: "{{$contributor.User.AvatarURL}}",
+					id: "{{$contributor.ID}}",
+				}
+			}))
+			this.removeEventListener('load', addContributor)
+		}
+		window.addEventListener('load', addContributor)
 	</script>
 	{{end}}
+
 	{{range $task := .Tasks}}
 	{{if eq $task.IsCompleted true}}
 	<script>
-		window.addEventListener('load', function () {
-			document.getElementById('completed-tasks-list').
-				dispatchEvent(new CustomEvent('add-task', {
-					bubbles: true,
-					detail: {
-						elem: document.createElement('li'),
-						description: "{{$task.Description}}",
-						isCompleted: true,
-						id: "{{$task.ID}}",
-					}
-				}))
-		})
+		function addTaskCompleted() {
+			completedTasksList.dispatchEvent(new CustomEvent('add-task', {
+				bubbles: true,
+				detail: {
+					elem: document.createElement('li'),
+					description: "{{$task.Description}}",
+					isCompleted: true,
+					id: "{{$task.ID}}",
+				}
+			}))
+			this.removeEventListener('load', addTaskCompleted)
+		}
+		window.addEventListener('load', addTaskCompleted)
 	</script>
 	{{else}}
 	<script>
-		window.addEventListener('load', function () {
-			document.getElementById('tasks-list').dispatchEvent(new CustomEvent('add-task', {
+		function addTask() {
+			tasksList.dispatchEvent(new CustomEvent('add-task', {
 				bubbles: true,
 				detail: {
 					elem: document.createElement('li'),
@@ -68,9 +72,36 @@
 					id: "{{$task.ID}}",
 				}
 			}))
-		})
+
+			this.removeEventListener('load', addTask)
+
+		}
+		window.addEventListener('load', addTask)
 	</script>
 	{{end}}
+
+	{{if ne (len $task.ContributorIDs) (len $contributors)}}
+	{{range $contributorID := $task.ContributorIDs}}
+	<script>
+		function attachContributor() {
+			const task = tasksPane.querySelector('.task[data-task-id="{{$task.ID}}"]')
+			if (task) {
+				task.dispatchEvent(new CustomEvent('attach-contributor', {
+					detail: {
+						id: '{{$contributorID}}',
+					}
+				}))
+			} else {
+				console.error('no task for {{$task.ID}}')
+			}
+
+			this.removeEventListener('load', attachContributor)
+		}
+		window.addEventListener('load', attachContributor)		
+	</script>
+	{{end}}
+	{{end}}
+
 	{{end}}
 </main>
 {{end}}

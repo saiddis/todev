@@ -5,6 +5,7 @@ const isAdmin = repoInfo.dataset.isAdmin
 const tasksPane = document.getElementById('tasks-pane')
 const conributorsPane = document.getElementById('contributors-pane')
 const tasksList = document.getElementById('tasks-list')
+const contributorsList = document.getElementById('contributors-list')
 const completedTasksList = document.getElementById('completed-tasks-list')
 const titleCompleted = document.getElementById('title-completed')
 const addTaskButton = document.getElementById('add-task-button')
@@ -17,6 +18,7 @@ const copyContent = async (text) => {
 	}
 }
 
+let contributorsMap = new Map;
 
 tasksPane.addEventListener('escape-task', function(event) {
 	if (event.target.parentElement == tasksList) {
@@ -41,14 +43,49 @@ tasksPane.addEventListener('escape-task', function(event) {
 })
 
 tasksPane.addEventListener('add-task', function(event) {
+	let task = null;
 	if (isAdmin == 'true') {
-		new Task(event.detail.elem, event.detail.description, event.detail.id, event.detail.isCompleted)
+		task = new Task(event.detail.elem, event.detail.description, event.detail.id, event.detail.isCompleted)
 	} else {
-		new UserTask(event.detail.elem, event.detail.description, event.detail.id, event.detail.isCompleted)
+		task = new UserTask(event.detail.elem, event.detail.description, event.detail.id, event.detail.isCompleted)
 	}
 
-	event.detail.elem.classList.add('droppable')
-	event.detail.elem.addEventListener('attach-contributor', onAttachContriubutor)
+	task.wrapper.classList.add('droppable')
+	task.wrapper.addEventListener('attach-contributor', (event) => {
+		const id = event.detail.id
+		if (event.target.querySelector(`.dropped[data-contributor-id="${id}"]`)) {
+			return false
+		} else if (!contributorsMap.has(id) || id == contributorID) {
+			return false
+		}
+
+		const contributorName = contributorsMap.get(id).name.innerHTML
+
+		let respTask = attachContributor(task.id, event.detail.id)
+		if (!respTask) {
+			return false
+		}
+
+		const elem = document.createElement('div')
+		elem.classList.add('dropped', 'inline-flex', 'center-h', 'gap-half')
+		elem.style.padding = 0.3 + 'rem'
+		elem.dataset.contributorId = id
+
+		let removeElem = document.createElement('div')
+		removeElem.className = 'cross'
+		removeElem.style.width = 1 + 'rem'
+		removeElem.style.height = 1 + 'rem'
+		removeElem.onclick = () => {
+			let respTask = unattachContributor()
+			if (!respTask) {
+				return false
+			}
+			elem.remove()
+		}
+
+		elem.append(removeElem, contributorName)
+		event.target.append(elem)
+	})
 
 	if (event.target.hidden) {
 		event.target.hidden = false
@@ -60,12 +97,12 @@ tasksPane.addEventListener('add-task', function(event) {
 conributorsPane.addEventListener('add-contributor', function(event) {
 	const contributor = new Contributor(event.detail.elem, event.detail.name, event.detail.avatarURL, event.detail.id)
 
+	contributorsMap.set(event.detail.id, contributor)
+
 	let dropEvent = new CustomEvent('attach-contributor', {
 		bubbles: true,
 		detail: {
 			id: event.detail.id,
-			name: event.detail.name,
-			avatarURL: event.detail.avatarURL,
 		},
 
 	})
@@ -76,27 +113,48 @@ conributorsPane.addEventListener('add-contributor', function(event) {
 	event.target.append(event.detail.elem)
 })
 
-function onAttachContriubutor(event) {
-	if (event.target.querySelector(`.dropped[data-contributor-id="${event.detail.id}"]`)) {
-		event.preventDefault()
-		return false
+async function attachContributor(taskId, contributorId) {
+	try {
+		const resp = await fetch(`/tasks/${taskId}]/contributor/${contributorId}`, {
+			method: 'POST',
+			headers: {
+				'Content-type': 'application/json',
+				'Accept': 'application/json',
+			}
+		})
+
+		if (resp.ok) {
+			return resp.json()
+		} else {
+			console.error('unexpected status: ' + resp.status)
+			return null
+		}
+	} catch (err) {
+		console.error('unexpected error: ' + err)
+		return null
 	}
+}
 
-	const elem = document.createElement('div')
-	elem.classList.add('dropped', 'inline-flex', 'center-h', 'gap-half')
-	elem.style.padding = 0.3 + 'rem'
-	elem.dataset.contributorId = event.detail.id
+async function unattachContributor(taskId, contributorId) {
+	try {
+		const resp = await fetch(`/tasks/${taskId}]/contributor/${contributorId}`, {
+			method: 'DELETE',
+			headers: {
+				'Content-type': 'application/json',
+				'Accept': 'application/json',
+			}
+		})
 
-	let removeElem = document.createElement('div')
-	removeElem.className = 'cross'
-	removeElem.style.width = 1 + 'rem'
-	removeElem.style.height = 1 + 'rem'
-	removeElem.onclick = () => {
-		elem.remove()
+		if (resp.ok) {
+			return resp.json()
+		} else {
+			console.error('unexpected status: ' + resp.status)
+			return null
+		}
+	} catch (err) {
+		console.error('unexpected error: ' + err)
+		return null
 	}
-
-	elem.append(removeElem, event.detail.name)
-	event.target.append(elem)
 }
 
 if (isAdmin == 'true') {
