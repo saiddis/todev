@@ -36,7 +36,6 @@ type ContributorCreateTemplate struct {
 type RepoViewTemplate struct {
 	UserID      int
 	Contributor *todev.Contributor
-	Tasks       []*todev.Task
 	Repo        *todev.Repo
 	InviteCode  string
 }
