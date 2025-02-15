@@ -73,6 +73,7 @@ class Task {
 		this.wrapper.dispatchEvent(new CustomEvent('escape-task', {
 			bubbles: true,
 			detail: {
+				id: this.id,
 				remove: true,
 			}
 		}))
@@ -118,6 +119,7 @@ class Task {
 		this.wrapper.dispatchEvent(new CustomEvent('escape-task', {
 			bubbles: true,
 			detail: {
+				id: this.id,
 				remove: false,
 			}
 		}))
@@ -131,7 +133,7 @@ class Task {
 }
 
 
-class Userelem extends Task {
+class UserTask extends Task {
 	getDescriptionElement(value) {
 		let input = document.createElement('input')
 		input.className = 'description'
@@ -160,9 +162,10 @@ class Userelem extends Task {
 	}
 
 	onCheckBox() {
-		this.wrapper.dispatchEvent(new CustomEvent('escape-elem', {
+		this.wrapper.dispatchEvent(new CustomEvent('escape-task', {
 			bubbles: true,
 			detail: {
+				id: this.id,
 				remove: false,
 			}
 		}))
@@ -178,10 +181,10 @@ class Userelem extends Task {
 
 }
 
-async function deleteTask(elemID) {
+async function deleteTask(taskId) {
 	try {
 
-		let resp = await fetch('/tasks/' + elemID, {
+		let resp = await fetch('/tasks/' + taskId, {
 			method: 'DELETE',
 			headers: {
 				'Content-type': 'application/json',
@@ -199,10 +202,10 @@ async function deleteTask(elemID) {
 	}
 }
 
-async function toggleCompletion(elemID) {
+async function toggleCompletion(taskId) {
 	try {
 
-		let resp = await fetch('/tasks/' + elemID, {
+		let resp = await fetch('/tasks/' + taskId, {
 			method: 'PATCH',
 			headers: {
 				'Content-Type': 'application/json',
