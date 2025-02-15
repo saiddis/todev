@@ -25,10 +25,10 @@ func (s *Server) registerTaskRoutes(r *mux.Router) {
 	r.HandleFunc("/tasks/{id}", s.handleTaskDelete).Methods("DELETE")
 
 	// Attach contributor.
-	r.HandleFunc("/tasks/{taskID}/contributor{contributorID}", s.handleTaskAttachContributor).Methods("POST")
+	r.HandleFunc("/tasks/{taskID}/contributor/{contributorID}", s.handleTaskAttachContributor).Methods("POST")
 
 	// Unattach contributor.
-	r.HandleFunc("/tasks/{taskID}/contributor{contributorID}", s.handleTaskUnattachContributor).Methods("DELETE")
+	r.HandleFunc("/tasks/{taskID}/contributor/{contributorID}", s.handleTaskUnattachContributor).Methods("DELETE")
 }
 
 // handleTaskRepoView handles the "GET /tasks" route. This route retrieves all
@@ -158,10 +158,11 @@ func (s *Server) handleTaskAttachContributor(w http.ResponseWriter, r *http.Requ
 	r.Header.Set("Accept", "application/json")
 
 	if task, err := s.TaskService.FindTaskByID(r.Context(), taskID); err != nil {
-		Error(w, r, fmt.Errorf("error deleting task by ID=%d: %v", taskID, err))
+		Error(w, r, fmt.Errorf("error retrieving task by ID=%d: %v", taskID, err))
 		return
 	} else if err = s.TaskService.AttachContributor(r.Context(), task, contributorID); err != nil {
 		Error(w, r, fmt.Errorf("error contributor ID for task with ID=%d: %v", taskID, err))
+		// LogError(r, fmt.Errorf("error contributor ID for task with ID=%d: %v", taskID, err))
 		return
 	} else if err = json.Encode(task, w); err != nil {
 		LogError(r, err)
