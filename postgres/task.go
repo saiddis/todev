@@ -384,7 +384,7 @@ func findTasks(ctx context.Context, tx *Tx, filter todev.TaskFilter) ([]*todev.T
 			COUNT(*) OVER()
 		FROM tasks t
 		JOIN repos r ON t.repo_id = r.id
-		JOIN tasks_contributors tc ON t.id = tc.task_id
+		LEFT JOIN tasks_contributors tc ON t.id = tc.task_id
 		WHERE `+strings.Join(where, " AND ")+`
 		GROUP BY t.id
 		ORDER BY `+sortBy+`
@@ -540,11 +540,19 @@ func attachTaskAssociations(ctx context.Context, tx *Tx, task *todev.Task) (err 
 }
 
 func attachContributor(ctx context.Context, tx *Tx, task *todev.Task, contributorID int) error {
+	log.Println("attach")
 	for i, id := range task.ContributorIDs {
 
 		if contributorID == id {
 			if _, err := tx.ExecContext(ctx, "DELETE FROM tasks_contributors where task_id = $1 AND contributor_id != $2", task.ID, contributorID); err != nil {
 				return fmt.Errorf("error deleting task contributors: %v", err)
+			}
+			for _, id := range task.ContributorIDs {
+				if id != contributorID {
+					if err := unattachContributor(ctx, tx, task, id); err != nil {
+						return fmt.Errorf("error unattaching contributors: %v", err)
+					}
+				}
 			}
 			task.ContributorIDs = []int{contributorID}
 			return nil
@@ -555,21 +563,22 @@ func attachContributor(ctx context.Context, tx *Tx, task *todev.Task, contributo
 				return fmt.Errorf("error inserting task contributor: %v", err)
 			}
 			task.ContributorIDs = append(task.ContributorIDs, contributorID)
-		} else if err := publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
-			Type: todev.EventTypeTaskAttachContributor,
-			Payload: todev.TaskContributorUnattached{
-				TaskID:        task.ID,
-				ContributorID: contributorID,
-			},
-		}); err != nil {
-			return err
-		}
 
-		task.ContributorIDs = append(task.ContributorIDs, contributorID)
-		return nil
+			if err := publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
+				Type: todev.EventTypeTaskAttachContributor,
+				Payload: todev.TaskContributorUnattached{
+					TaskID:        task.ID,
+					ContributorID: contributorID,
+				},
+			}); err != nil {
+				return err
+			}
+
+			return nil
+		}
 	}
 
-	return todev.Errorf(todev.ENOTFOUND, "No such contributor on the given task to unattach")
+	return todev.Errorf(todev.ENOTFOUND, "No such contributor on the given task to attach")
 }
 
 func unattachContributor(ctx context.Context, tx *Tx, task *todev.Task, contributorID int) error {
