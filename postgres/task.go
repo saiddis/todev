@@ -540,72 +540,106 @@ func attachTaskAssociations(ctx context.Context, tx *Tx, task *todev.Task) (err 
 }
 
 func attachContributor(ctx context.Context, tx *Tx, task *todev.Task, contributorID int) error {
-	log.Println("attach")
-	for i, id := range task.ContributorIDs {
+	if len(task.ContributorIDs) == 0 {
+		if err := createTaskContributor(ctx, tx, task, contributorID); err != nil {
+			return fmt.Errorf("error creating task contributor: %v", err)
+		}
 
+		return nil
+	}
+
+	for i, id := range task.ContributorIDs {
 		if contributorID == id {
 			if _, err := tx.ExecContext(ctx, "DELETE FROM tasks_contributors where task_id = $1 AND contributor_id != $2", task.ID, contributorID); err != nil {
 				return fmt.Errorf("error deleting task contributors: %v", err)
+			} else if err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
+				Type: todev.EventTypeTaskAttachContributor,
+				Payload: todev.TaskContributorAttached{
+					TaskID:        task.ID,
+					ContributorID: contributorID,
+				},
+			}); err != nil {
+				return err
 			}
-			for _, id := range task.ContributorIDs {
-				if id != contributorID {
-					if err := unattachContributor(ctx, tx, task, id); err != nil {
-						return fmt.Errorf("error unattaching contributors: %v", err)
-					}
-				}
-			}
+
 			task.ContributorIDs = []int{contributorID}
-			return nil
+			break
 		}
 
 		if i == len(task.ContributorIDs)-1 {
-			if _, err := tx.ExecContext(ctx, "INSERT INTO tasks_contributors(task_id, contributor_id) VALUES($1, $2)", task.ID, contributorID); err != nil {
+			if err := createTaskContributor(ctx, tx, task, contributorID); err != nil {
 				return fmt.Errorf("error inserting task contributor: %v", err)
 			}
-			task.ContributorIDs = append(task.ContributorIDs, contributorID)
-
-			if err := publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
-				Type: todev.EventTypeTaskAttachContributor,
-				Payload: todev.TaskContributorUnattached{
-					TaskID:        task.ID,
-					ContributorID: contributorID,
-				},
-			}); err != nil {
-				return err
-			}
-
-			return nil
+			break
 		}
 	}
 
-	return todev.Errorf(todev.ENOTFOUND, "No such contributor on the given task to attach")
+	return nil
 }
 
 func unattachContributor(ctx context.Context, tx *Tx, task *todev.Task, contributorID int) error {
-	for i, id := range task.ContributorIDs {
+	for _, id := range task.ContributorIDs {
 		if contributorID == id {
-			stmt, err := tx.PrepareContext(ctx, "DELETE FROM tasks_contributors WHERE task_id = $1 AND contributor_id = $2")
-
-			if err != nil {
-				return fmt.Errorf("error preparing query: %v", err)
-
-			} else if _, err = stmt.ExecContext(ctx, task.ID, contributorID); err != nil {
+			if err := deleteTaskContributor(ctx, tx, task, contributorID); err != nil {
 				return fmt.Errorf("error deleting task contributor: %v", err)
-
-			} else if err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
-				Type: todev.EventTypeTaskUnattachContributor,
-				Payload: todev.TaskContributorUnattached{
-					TaskID:        task.ID,
-					ContributorID: contributorID,
-				},
-			}); err != nil {
-				return err
 			}
-
-			task.ContributorIDs = slices.Concat(task.ContributorIDs[:i], task.ContributorIDs[1+i:])
 			return nil
 		}
 	}
 
 	return todev.Errorf(todev.ENOTFOUND, "No such contributor on the given task to unattach")
+}
+
+func createTaskContributor(ctx context.Context, tx *Tx, task *todev.Task, contributorID int) error {
+	if stmt, err := tx.PrepareContext(
+		ctx,
+		"INSERT INTO tasks_contributors(task_id, contributor_id) VALUES($1, $2)",
+	); err != nil {
+		return fmt.Errorf("error preparing statement: %v", err)
+	} else if _, err = stmt.ExecContext(ctx, task.ID, contributorID); err != nil {
+		return fmt.Errorf("error inserting task contributor: %v", err)
+	} else if err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
+		Type: todev.EventTypeTaskAttachContributor,
+		Payload: todev.TaskContributorAttached{
+			TaskID:        task.ID,
+			ContributorID: contributorID,
+		},
+	}); err != nil {
+		return err
+	}
+
+	task.ContributorIDs = append(task.ContributorIDs, contributorID)
+	return nil
+}
+
+func deleteTaskContributor(ctx context.Context, tx *Tx, task *todev.Task, contributorID int) error {
+	log.Print("delete")
+	for i, id := range task.ContributorIDs {
+		if id == contributorID {
+			task.ContributorIDs = slices.Concat(task.ContributorIDs[:i], task.ContributorIDs[1+i:])
+			break
+		}
+
+		if i == len(task.ContributorIDs)-1 {
+			return fmt.Errorf("no contributor id %d in task", contributorID)
+		}
+	}
+	if stmt, err := tx.PrepareContext(
+		ctx,
+		"DELETE FROM tasks_contributors WHERE task_id = $1 AND contributor_id = $2",
+	); err != nil {
+		return fmt.Errorf("error preparing statement: %v", err)
+	} else if _, err = stmt.ExecContext(ctx, task.ID, contributorID); err != nil {
+		return fmt.Errorf("error inserting task contributor: %v", err)
+	} else if err = publishRepoEvent(ctx, tx, task.RepoID, todev.Event{
+		Type: todev.EventTypeTaskUnattachContributor,
+		Payload: todev.TaskContributorUnattached{
+			TaskID:        task.ID,
+			ContributorID: contributorID,
+		},
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
