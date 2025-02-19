@@ -27,7 +27,7 @@
 	{{$contributors := .Repo.Contributors}}
 	{{range $contributor := $contributors}}
 	<script>
-		function addContributor() {
+		window.addEventListener('load', function () {
 			contributorsList.dispatchEvent(new CustomEvent('add-contributor', {
 				bubbles: true,
 				detail: {
@@ -37,16 +37,14 @@
 					id: "{{$contributor.ID}}",
 				}
 			}))
-			this.removeEventListener('load', addContributor)
-		}
-		window.addEventListener('load', addContributor)
+		})
 	</script>
 	{{end}}
 
-	{{range $task := .Tasks}}
+	{{range $task := .Repo.Tasks}}
 	{{if eq $task.IsCompleted true}}
 	<script>
-		function addTaskCompleted() {
+		window.addEventListener('load', function () {
 			completedTasksList.dispatchEvent(new CustomEvent('add-task', {
 				bubbles: true,
 				detail: {
@@ -56,13 +54,11 @@
 					id: "{{$task.ID}}",
 				}
 			}))
-			this.removeEventListener('load', addTaskCompleted)
-		}
-		window.addEventListener('load', addTaskCompleted)
+		})
 	</script>
 	{{else}}
 	<script>
-		function addTask() {
+		window.addEventListener('load', function () {
 			tasksList.dispatchEvent(new CustomEvent('add-task', {
 				bubbles: true,
 				detail: {
@@ -72,32 +68,28 @@
 					id: "{{$task.ID}}",
 				}
 			}))
-
-			this.removeEventListener('load', addTask)
-
-		}
-		window.addEventListener('load', addTask)
+		})
 	</script>
 	{{end}}
 
 	{{if ne (len $task.ContributorIDs) (len $contributors)}}
 	{{range $contributorID := $task.ContributorIDs}}
 	<script>
-		function attachContributor() {
+		window.addEventListener('load', function () {
 			const task = tasksPane.querySelector('.task[data-task-id="{{$task.ID}}"]')
 			if (task) {
 				task.dispatchEvent(new CustomEvent('attach-contributor', {
+					bubbles: false,
+					cancelable: true,
 					detail: {
-						id: '{{$contributorID}}',
+						contributorId: '{{$contributorID}}',
+						taskId: '{{$task.ID}}'
 					}
 				}))
 			} else {
 				console.error('no task for {{$task.ID}}')
 			}
-
-			this.removeEventListener('load', attachContributor)
-		}
-		window.addEventListener('load', attachContributor)		
+		})		
 	</script>
 	{{end}}
 	{{end}}

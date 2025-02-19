@@ -19,6 +19,7 @@ const copyContent = async (text) => {
 }
 
 let contributorsMap = new Map;
+let tasksMap = new Map;
 
 tasksPane.addEventListener('escape-task', function(event) {
 	if (event.target.parentElement == tasksList) {
@@ -33,6 +34,7 @@ tasksPane.addEventListener('escape-task', function(event) {
 
 	if (event.detail.remove) {
 		event.target.remove()
+		tasksMap.delete(parseInt(event.target.dataset.taskId))
 	}
 
 	if (completedTasksList.childElementCount < 3) {
@@ -57,6 +59,7 @@ tasksPane.addEventListener('add-task', function(event) {
 	}
 
 	event.target.append(event.detail.elem)
+	tasksMap.set(parseInt(task.id), task)
 })
 
 tasksPane.addEventListener('attach-contributor', function(event) {
@@ -64,7 +67,7 @@ tasksPane.addEventListener('attach-contributor', function(event) {
 		event.target.querySelector(`.dropped[data-contributor-id="${event.detail.contributorId}"]`).remove()
 		return false
 	}
-	console.log('attach')
+
 	attachContributor(event.detail.taskId, event.detail.contributorId)
 		.then(response => {
 			if (!response) {
@@ -76,19 +79,19 @@ tasksPane.addEventListener('attach-contributor', function(event) {
 conributorsPane.addEventListener('add-contributor', function(event) {
 	const contributor = new Contributor(event.detail.elem, event.detail.name, event.detail.avatarURL, event.detail.id)
 
-	contributorsMap.set(contributor.id, contributor)
-	if (isAdmin == 'true') {
+	if (isAdmin == 'true' && currContributorId != contributor.id) {
 		makeContributorDraggable(contributor)
 	}
 
 	event.target.append(event.detail.elem)
+	contributorsMap.set(parseInt(contributor.id), contributor)
 })
 
 function makeTaskDroppable(task) {
 	task.wrapper.classList.add('droppable')
 	task.wrapper.addEventListener('attach-contributor', (event) => {
 		const contributorId = event.detail.contributorId
-		if (!contributorsMap.has(contributorId) || contributorId == currContributorId) {
+		if (!contributorsMap.has(parseInt(contributorId))) {
 			event.stopPropagation()
 			return false
 		} else if (event.target.querySelector(`.dropped[data-contributor-id="${contributorId}"]`)) {
@@ -114,7 +117,7 @@ function makeTaskDroppable(task) {
 					elem.remove()
 				})
 		}
-		const contributorName = contributorsMap.get(contributorId).name.innerHTML
+		const contributorName = contributorsMap.get(parseInt(contributorId)).name.innerHTML
 
 		if (isAdmin == "true") {
 			elem.append(removeElem, contributorName)
@@ -201,7 +204,7 @@ function addTask() {
 	input.focus()
 	input.onblur = async () => {
 		if (!input.value.trim()) {
-			li.remove()
+			input.remove()
 			return
 		}
 		let task = await createTask(input.value)
@@ -251,50 +254,83 @@ function connect() {
 	const socket = new ReconnectingWebSocket((location.protocol == 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/events');
 	socket.onmessage = function(event) {
 		const e = JSON.parse(event.data)
+		let task = null
+
 		switch (e.type) {
 			case 'task:added':
-				const li = document.createElement('li')
-
-				if (isAdmin == 'true') {
-					new Task(li, e.payload.task.description, e.payload.task.id, false)
-				} else {
-					new UserTask(li, e.payload.task.description, e.payload.task.id, false)
-				}
-
-				tasksList.append(li)
+				tasksList.dispatchEvent(new CustomEvent('add-task', {
+					bubbles: true,
+					detail: {
+						elem: document.createElement('li'),
+						description: e.payload.task.description,
+						isCompleted: false,
+						id: e.payload.task.id,
+					}
+				}))
 				break
 			case 'task:deleted':
-				let task = document.querySelector(`.task[data-task-id="${e.payload.id}"]`)
-				if (task != null) {
-					task.dispatchEvent(new CustomEvent('escape-task', {
+				task = tasksMap.get(e.payload.id)
+				if (task) {
+					task.wrapper.dispatchEvent(new CustomEvent('escape-task', {
 						bubbles: true,
 						detail: {
-							id: e.payload.id,
+							id: task.id,
 							remove: true,
 						}
 					}))
 				} else {
-					console.log("couldn't find task by id: " + e.payload.id)
+					console.error("couldn't find task by id: " + e.payload.id)
 				}
 				break
 			case 'task:completion_toggled':
-				let checkbox = document.querySelector(`.task[data-task-id="${e.payload.id}"] input[type="checkbox"]`)
-				if (checkbox != null) {
-					checkbox.dispatchEvent(new Event('change', {
+				task = tasksMap.get(e.payload.id)
+				if (task) {
+					task.checkBox.dispatchEvent(new Event('change', {
 						bubbles: false,
 					}))
 				} else {
-					console.log("couldn't find task by id: " + e.payload.id)
+					console.error("couldn't find task by id: " + e.payload.id)
 				}
 				break
 			case 'task:description_changed':
-				let input = document.querySelector(`.task[data-task-id="${e.payload.id}"] input[type="text"]`)
-				if (input != null) {
-					input.value = e.payload.value
+				task = tasksMap.get(e.payload.id)
+				if (task) {
+					task.description.value = e.payload.value
 				} else {
-					console.log("couldn't find task by id: " + e.payload.id)
+					console.error("couldn't find task by id: " + e.payload.id)
 				}
 				break
+			case 'task:attach_contributor':
+				task = tasksMap.get(e.payload.taskID)
+				if (task) {
+					task.wrapper.dispatchEvent(new CustomEvent('attach-contributor', {
+						bubbles: false,
+						cancelable: true,
+						detail: {
+							contributorId: e.payload.contributorID,
+							taskId: e.payload.taskID,
+						}
+					}))
+				} else {
+					console.error('no task for ' + e.payload.taskID)
+				}
+				break
+			case 'task:unattach_contributor':
+				task = tasksMap.get(e.payload.taskID)
+				if (task) {
+					let taskContributor = task.wrapper.querySelector(`.dropped[data-contributor-id="${e.payload.contributorID}"]`)
+					console.log(taskContributor)
+					if (taskContributor) {
+						taskContributor.remove()
+					} else {
+						console.log('no attached contributor for ' + e.payload.contributorID)
+					}
+
+				} else {
+					console.error('no task for ' + e.payload.taskID)
+				}
+				break
+
 		}
 	}
 }
