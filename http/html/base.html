@@ -14,26 +14,33 @@
 </head>
 
 <body>
-	<nav>
-		<a class="logo" href="/"><span>todev</span></a>
-		<div id="profile">
-			<form action="/logout" method="POST">
-				<input type="hidden" name="_method" value="DELETE" />
-				<button id="logout-button" type="submit">Logout</button>
-			</form>
-			<img class="avatar" src="" aria-placeholder="Avatar" />
-		</div>
-	</nav>
+	<div id="main-grid">
+		<nav>
+			<a class="logo" href="/"><span>todev</span></a>
+			<div id="profile">
+				<form action="/logout" method="POST">
+					<input type="hidden" name="_method" value="DELETE" />
+					<button id="logout-button" type="submit">
+						<img class="svg" src="/assets/logout.svg"></img>
+					</button>
+				</form>
+				<img class="avatar" src="" aria-placeholder="Avatar" />
+			</div>
+		</nav>
+		<aside>
+			{{ template "control" . }}
+		</aside>
+		{{ template "body" . }}
+		<footer>
+			<div class="made-with-love">
+				Made with
+				<i>♥</i> by
+				<a href="https://github.com/saiddis">said</a>
+			</div>
+		</footer>
+	</div>
 
-	{{ template "body" .}}
 
-	<footer>
-		<div class="made-with-love">
-			Made with
-			<i>♥</i> by
-			<a href="https://github.com/saiddis">said</a>
-		</div>
-	</footer>
 	<script src="/assets/scripts/base.js">
 	</script>
 </body>

@@ -79,7 +79,7 @@ tasksPane.addEventListener('attach-contributor', function(event) {
 conributorsPane.addEventListener('add-contributor', function(event) {
 	const contributor = new Contributor(event.detail.elem, event.detail.name, event.detail.avatarURL, event.detail.id)
 
-	if (isAdmin == 'true' && currContributorId != contributor.id) {
+	if (isAdmin == 'true') {
 		makeContributorDraggable(contributor)
 	}
 
@@ -105,7 +105,7 @@ function makeTaskDroppable(task) {
 		elem.dataset.contributorId = contributorId
 
 		let removeElem = document.createElement('div')
-		removeElem.className = 'cross'
+		removeElem.className = 'icon-cross'
 		removeElem.style.width = 1 + 'rem'
 		removeElem.style.height = 1 + 'rem'
 		removeElem.onclick = () => {
@@ -319,7 +319,6 @@ function connect() {
 				task = tasksMap.get(e.payload.taskID)
 				if (task) {
 					let taskContributor = task.wrapper.querySelector(`.dropped[data-contributor-id="${e.payload.contributorID}"]`)
-					console.log(taskContributor)
 					if (taskContributor) {
 						taskContributor.remove()
 					} else {

@@ -1,6 +1,6 @@
 {{define "title"}}Todev{{end}}
 {{define "body"}}
-<main>
+<main class="col gap">
 	{{if eq (len .Repos) 0}}
 	<h3>No repos...</h3>
 
@@ -17,10 +17,15 @@
 	</ul>
 	{{end}}
 
-	<form method="GET" action="/repos/new" class="flex center-h col">
-		<button type="submit">Create Repo</button>
-	</form>
 </main>
+{{end}}
+
+{{define "control"}}
+<form method="GET" action="/repos/new" class="flex center-h col">
+	<button type="submit">
+		<img class="svg" src="/assets/plus.svg"></img>
+	</button>
+</form>
 {{end}}
 
 {{define "scripts"}}

@@ -1,7 +1,7 @@
 {{define "title"}}Edit repo{{end}}
 
 {{define "body"}}
-<main class="center-h">
+<main class="center-h col gap">
 	<form method="POST" class="form">
 		<div class="flex col center gap">
 			{{if ne .Repo.ID 0}}
@@ -16,4 +16,6 @@
 </main>
 {{end}}
 
+
+{{define "control"}}{{end}}
 {{define "scripts"}}{{end}}

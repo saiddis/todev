@@ -1,33 +1,40 @@
 {{define "title"}}{{.Repo.Name}}{{end}}
-{{define "body"}}
-<main id="repo-info" data-repo-id={{.Repo.ID}} data-contributor-id={{.Contributor.ID}}
-	data-is-admin={{.Contributor.IsAdmin}}>
-	<div class="grid row-1">
-		<div id="contributors-pane">
-			<button id="invite-link-button" onclick="copyContent('{{.InviteCode}}')">Copy invite
-				link</button>
-			<ul id="contributors-list">
-			</ul>
-		</div>
 
-		<div id="tasks-pane">
-			{{if eq .UserID .Repo.UserID}}
-			<button id="add-task-button">
-				Create task
-			</button>
-			{{end}}
-			<ul id="tasks-list" class="container">
-			</ul>
-			<ul id="completed-tasks-list" class="container" hidden>
-				<hr>
-				<h3 id="title-completed">Completed</h3>
-			</ul>
-		</div>
+{{define "control"}}
+{{if eq .UserID .Repo.UserID}}
+<button id="add-task-button">
+	<img class="svg" src="/assets/checkbox.svg"></img>
+</button>
+<button id="invite-link-button" onclick="copyContent('{{.InviteCode}}')">
+	<img class="svg" src="/assets/copy.svg"></img>
+</button>
+<button id="expand-contributors-pane-button">
+	<img class="svg" src="/assets/smile.svg"></img>
+</button>
+{{end}}
+{{end}}
+
+{{define "body"}}
+<main class="col gap" id="repo-info" data-repo-id={{.Repo.ID}} data-contributor-id={{.Contributor.ID}}
+	data-is-admin={{.Contributor.IsAdmin}}>
+	<!--<div id="contributors-pane">-->
+	<!--	<ul id="contributors-list">-->
+	<!--	</ul>-->
+	<!--</div>-->
+
+	<div class="flex col" id="tasks-pane">
+		<ul id="tasks-list" class="container">
+		</ul>
+		<ul id="completed-tasks-list" class="container" hidden>
+			<hr>
+			<h3 id="title-completed">Completed</h3>
+		</ul>
 	</div>
+
 	{{$contributors := .Repo.Contributors}}
 	{{range $contributor := $contributors}}
 	<script>
-		window.addEventListener('load', function () {
+		function addContributor() {
 			contributorsList.dispatchEvent(new CustomEvent('add-contributor', {
 				bubbles: true,
 				detail: {
@@ -37,14 +44,15 @@
 					id: "{{$contributor.ID}}",
 				}
 			}))
-		})
+		}
+		window.addEventListener('load', addContributor)
 	</script>
 	{{end}}
 
 	{{range $task := .Repo.Tasks}}
 	{{if eq $task.IsCompleted true}}
 	<script>
-		window.addEventListener('load', function () {
+		function addTaskCompleted() {
 			completedTasksList.dispatchEvent(new CustomEvent('add-task', {
 				bubbles: true,
 				detail: {
@@ -54,11 +62,12 @@
 					id: "{{$task.ID}}",
 				}
 			}))
-		})
+		}
+		window.addEventListener('load', addTaskCompleted)
 	</script>
 	{{else}}
 	<script>
-		window.addEventListener('load', function () {
+		function addTask() {
 			tasksList.dispatchEvent(new CustomEvent('add-task', {
 				bubbles: true,
 				detail: {
@@ -68,14 +77,15 @@
 					id: "{{$task.ID}}",
 				}
 			}))
-		})
+		}
+		window.addEventListener('load', addTask)
 	</script>
 	{{end}}
 
 	{{if ne (len $task.ContributorIDs) (len $contributors)}}
 	{{range $contributorID := $task.ContributorIDs}}
 	<script>
-		window.addEventListener('load', function () {
+		function attachContributor() {
 			const task = tasksPane.querySelector('.task[data-task-id="{{$task.ID}}"]')
 			if (task) {
 				task.dispatchEvent(new CustomEvent('attach-contributor', {
@@ -89,7 +99,9 @@
 			} else {
 				console.error('no task for {{$task.ID}}')
 			}
-		})		
+			this.removeEventListener('load', attachContributor)
+		}
+		window.addEventListener('load', attachContributor)		
 	</script>
 	{{end}}
 	{{end}}

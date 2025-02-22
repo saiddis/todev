@@ -36,7 +36,7 @@ class Task {
 
 	getRemoveElement() {
 		let cross = document.createElement('div')
-		cross.className = 'cross'
+		cross.className = 'icon-cross'
 		return cross
 	}
 
