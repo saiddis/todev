@@ -72,10 +72,10 @@ class Draggable {
 
 
 	leaveDroppable(elem) {
-		elem.style.backgroundColor = ''
+		elem.style.outline = 'none'
 	}
 
 	enterDroppable(elem) {
-		elem.style.backgroundColor = 'pink'
+		elem.style.outline = '2px solid var(--border-color)'
 	}
 }
