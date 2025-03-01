@@ -16,16 +16,25 @@
 		{{end}}
 	</ul>
 	{{end}}
-
 </main>
+<form method="POST" action="/repos/new" class="floating center" id="create-repo-form" style="display: none;">
+	<div class="icon-cross"></div>
+	<div class="flex center gap">
+		<input type="hidden" name="_method" value="POST" />
+		<input type="text" id="name" name="name" class="form__input" autofocus maxlength="32"
+			placeholder="Repo Name" required="" />
+		<!--<label for="name" class="form__label">Repo Name</label>-->
+		<button type="submit">
+			<img class="svg" src="/assets/save.svg"></img>
+		</button>
+	</div>
+</form>
 {{end}}
 
 {{define "control"}}
-<form method="GET" action="/repos/new" class="flex center-h col">
-	<button type="submit">
-		<img class="svg" src="/assets/plus.svg"></img>
-	</button>
-</form>
+<button id="create-repo-button">
+	<img class="svg" src="/assets/plus.svg"></img>
+</button>
 {{end}}
 
 {{define "scripts"}}
