@@ -8,19 +8,15 @@
 <button id="invite-link-button" onclick="copyContent('{{.InviteCode}}')">
 	<img class="svg" src="/assets/copy.svg"></img>
 </button>
+{{end}}
 <button id="expand-contributors-pane-button">
 	<img class="svg" src="/assets/smile.svg"></img>
 </button>
 {{end}}
-{{end}}
 
 {{define "body"}}
-<main class="col gap" id="repo-info" data-repo-id={{.Repo.ID}} data-contributor-id={{.Contributor.ID}}
+<main class="flex gap" id="repo-info" data-repo-id={{.Repo.ID}} data-contributor-id={{.Contributor.ID}}
 	data-is-admin={{.Contributor.IsAdmin}}>
-	<!--<div id="contributors-pane">-->
-	<!--	<ul id="contributors-list">-->
-	<!--	</ul>-->
-	<!--</div>-->
 
 	<div class="flex col" id="tasks-pane">
 		<ul id="tasks-list" class="container">
@@ -28,6 +24,11 @@
 		<ul id="completed-tasks-list" class="container" hidden>
 			<hr>
 			<h3 id="title-completed">Completed</h3>
+		</ul>
+	</div>
+
+	<div id="contributors-pane">
+		<ul id="contributors-list">
 		</ul>
 	</div>
 
