@@ -3,12 +3,13 @@ const repoID = repoInfo.dataset.repoId
 const currContributorId = repoInfo.dataset.contributorId
 const isAdmin = repoInfo.dataset.isAdmin
 const tasksPane = document.getElementById('tasks-pane')
-const conributorsPane = document.getElementById('contributors-pane')
+const contributorsPane = document.getElementById('contributors-pane')
 const tasksList = document.getElementById('tasks-list')
 const contributorsList = document.getElementById('contributors-list')
 const completedTasksList = document.getElementById('completed-tasks-list')
 const titleCompleted = document.getElementById('title-completed')
 const addTaskButton = document.getElementById('add-task-button')
+const expandContributorsPaneButton = document.getElementById('expand-contributors-pane-button')
 const copyContent = async (text) => {
 	try {
 		await navigator.clipboard.writeText(text);
@@ -76,7 +77,7 @@ tasksPane.addEventListener('attach-contributor', function(event) {
 		})
 })
 
-conributorsPane.addEventListener('add-contributor', function(event) {
+contributorsPane.addEventListener('add-contributor', function(event) {
 	const contributor = new Contributor(event.detail.elem, event.detail.name, event.detail.avatarURL, event.detail.id)
 
 	if (isAdmin == 'true') {
@@ -86,6 +87,15 @@ conributorsPane.addEventListener('add-contributor', function(event) {
 	event.target.append(event.detail.elem)
 	contributorsMap.set(parseInt(contributor.id), contributor)
 })
+
+expandContributorsPaneButton.onclick = function() {
+	if (contributorsPane.hidden) {
+		contributorsPane.hidden = false
+	} else {
+
+		contributorsPane.hidden = true
+	}
+}
 
 function makeTaskDroppable(task) {
 	task.wrapper.classList.add('droppable')
