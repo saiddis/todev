@@ -27,13 +27,13 @@ const (
 // Build version, injected during build.
 var (
 	version string
-	commint string
+	commit  string
 )
 
 func main() {
 	// Propogate build information to root package to share globally.
 	todev.Version = strings.TrimPrefix(version, "")
-	todev.Commit = commint
+	todev.Commit = commit
 
 	// Setup signal handlers.
 	ctx, cancel := context.WithCancel(context.Background())
